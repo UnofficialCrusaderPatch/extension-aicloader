@@ -549,11 +549,11 @@ local function getAndValidateAicValue(aicField, aicValue)
 
   local valueIndex = aiFieldIndex[aicField]
   if valueIndex == nil then
-    error("Unknown AIC field: " .. aicField, 0)
+    error(string.format("Unknown AIC field: '%s'", aicField), 0)
   end
   local valueFunction = aiFieldFunction[valueIndex]
   if valueFunction == nil then
-    error("For some reason AIC index has no test function: " .. valueIndex, 0)
+    error(string.format("For some reason AIC index '%s' has no test function.", valueIndex), 0)
   end
   return valueIndex, valueFunction(aicValue)
 end

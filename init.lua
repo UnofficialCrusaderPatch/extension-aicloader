@@ -142,7 +142,7 @@ namespace = {
     end)
 
     if not status then
-      log(WARNING, string.format("Error while setting '%s': '%s'. Value ignored.", aicField, err))
+      log(WARNING, string.format("Error while setting '%s': %s. Value ignored.", aicField, err))
     end
   end,
 
