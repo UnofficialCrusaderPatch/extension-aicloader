@@ -1,8 +1,7 @@
-# The name of your module
 name: aicloader
-version: 1.0.0
-suggests: [commands>=0.0.1]
-author: [gynt, TheRedDaemon]
-game: [SHC==1.41, SHCE==1.41, SHCE==1.41.1]
+display-name: AIC Loader
+version: 1.1.0
+author: gynt, TheRedDaemon
 meta:
-  version: 1.0.0
+  version: 1.1.0
+type: module
