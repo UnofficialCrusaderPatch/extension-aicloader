@@ -57,6 +57,10 @@ local function isIntegerBetweenZeroAndEleven(value, extendError)
   return isIntegerValue(value, 0, 11, extendError)
 end
 
+local function isIntegerBetweenZeroAndTwelve(value, extendError)
+  return isIntegerValue(value, 0, 12, extendError)
+end
+
 local function isRecruitPropDefaultValue(value)
   return isIntegerBetweenZeroAndOneHundred(value,
       "Values for RecruitProb<State>Default fields must add up to 100.")
@@ -165,7 +169,7 @@ local aiFieldFunction = {
   [7  ]   =   isIntegerBetweenZeroAndTenThousand,
   [8  ]   =   isIntegerBetweenZeroAndTenThousand,
   [9  ]   =   isIntegerBetweenZeroAndEleven,
-  [10 ]   =   isIntegerBetweenZeroAndEleven,
+  [10 ]   =   isIntegerBetweenZeroAndTwelve,
   [11 ]   =   is32BitInteger,
   [12 ]   =   isFarmBuildingValue,
   [13 ]   =   isFarmBuildingValue,
