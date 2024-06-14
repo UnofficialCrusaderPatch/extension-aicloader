@@ -1,0 +1,19 @@
+specification-version: 1.0.0
+options:
+- display: GroupBox
+  header: '{{general}}'
+  text: '{{general_descr}}'
+  category: ['{{ai}}', '{{misc}}']
+  children:
+    - url: aicloader.failureHandling
+      text: '{{failureHandling_descr}}'
+      display: Choice
+      contents:
+        choices:
+        - name: WARN_LOG
+          text: '{{failureHandling_log}}'
+        - name: ERROR_LOG
+          text: '{{failureHandling_message}}'
+        - name: FATAL_LOG
+          text: '{{failureHandling_abort}}'
+        value: ERROR_LOG

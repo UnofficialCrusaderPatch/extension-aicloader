@@ -3,3 +3,5 @@ files:
   - src: "*.yml"
   - src: "resources\vanilla.json"
     target: "vanilla.json"
+  - src: "locale"
+    target: "."
