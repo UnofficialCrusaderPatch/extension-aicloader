@@ -155,6 +155,13 @@ local function isBoolean(value)
     return value
 end
 
+local function handleDefSiegeEngineGoldThreshold(value)
+  -- not full integer range, since the value needs to be negatable and still fit in signed 32 bit integer range
+  local value = isIntegerValue(value, INT_MIN + 1, INT_MAX)
+  -- negate value
+  return -value
+end
+
 
 --[[ Main Objects ]]--
 
@@ -229,7 +236,7 @@ local aiFieldFunction = {
   [67 ]   =   isResourceValue,
   [68 ]   =   isPositiveInteger,
   [69 ]   =   isPositiveInteger,
-  [70 ]   =   isIntegerBetweenMinusOneAndMaxInt,
+  [70 ]   =   handleDefSiegeEngineGoldThreshold,
   [71 ]   =   is32BitInteger,
   [72 ]   =   is32BitInteger,
   [73 ]   =   is32BitInteger,
