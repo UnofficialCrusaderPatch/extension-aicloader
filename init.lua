@@ -5,8 +5,18 @@ local AICharacterName = require("characters")
 
 local Personality = require("personality")
 
+local FailureHandling = {
+  WARN_LOG = "WARN_LOG",
+  ERROR_LOG = "ERROR_LOG",
+  FATAL_LOG = "FATAL_LOG",
+  CHAT_TEXT = "CHAT_TEXT",
+}
+
 local aicArrayBaseAddr = core.readInteger(core.AOBScan(
   "? ? ? ? e8 ? ? ? ? 89 1d ? ? ? ? 83 3d ? ? ? ? 00 75 44 6a 08 b9 ? ? ? ? e8 ? ? ? ? 85 c0 74 34 8b c5 2b 05"))
+
+local failureHandlingSetting = FailureHandling.ERROR_LOG
+local commandsActive = false
 
 local isInitialized = false
 local vanillaAIC = {}
@@ -41,7 +51,6 @@ end
 -- You can consider this a forward declaration
 local namespace = {}
 
--- TODO (issue-4): if warnings are changed, these should work differently to not crash the game
 local commands = {
   onCommandSetAICValue = function(command)
     if not initializedCheck() then
@@ -55,7 +64,7 @@ local commands = {
         "/setAICValue [aiType: 1-16 or AI character type] [field name] [value]"
       )
     else
-      namespace:setAICValue(aiType, fieldName, value)
+      namespace:setAICValue(aiType, fieldName, value, FailureHandling.CHAT_TEXT)
     end
   end,
 
@@ -71,7 +80,7 @@ local commands = {
         "/loadAICsFromFile [path]"
       )
     else
-      namespace:overwriteAICsFromFile(path)
+      namespace:overwriteAICsFromFile(path, FailureHandling.CHAT_TEXT)
     end
   end,
 }
@@ -79,7 +88,13 @@ local commands = {
 -- functions you want to expose to the outside world
 namespace = {
   enable = function(self, config)
-    if modules.commands then
+
+    if config["failureHandling"] then
+      failureHandlingSetting = FailureHandling[config["failureHandling"]]
+    end
+
+    commandsActive = not not modules.commands
+    if commandsActive then
       modules.commands:registerCommand("setAICValue", commands.onCommandSetAICValue)
       modules.commands:registerCommand("loadAICsFromFile", commands.onCommandLoadAICsFromFile)
     end
@@ -119,7 +134,7 @@ namespace = {
   end,
 
 
-  setAICValue = function(self, aiType, aicField, aicValue)
+  setAICValue = function(self, aiType, aicField, aicValue, failureHandlingOverride)
     if not initializedCheck() then
       return
     end
@@ -142,21 +157,34 @@ namespace = {
     end)
 
     if not status then
-      log(WARNING, string.format("Error while setting '%s': %s Value ignored.", aicField, err))
+      local message = string.format("Error while setting '%s': %s", aicField, err)
+
+      local failureHandling = failureHandlingOverride or failureHandlingSetting
+      if failureHandling == FailureHandling.WARN_LOG then
+        log(WARNING, message)
+      elseif failureHandling == FailureHandling.ERROR_LOG then
+        log(ERROR, message)
+      elseif failureHandling == FailureHandling.FATAL_LOG then
+        log(FATAL, message)
+      elseif commandsActive and failureHandling == FailureHandling.CHAT_TEXT then
+        modules.commands:displayChatText(message)
+      else
+        log(ERROR, message) -- default handling
+      end
     end
   end,
 
-  overwriteAIC = function(self, aiType, aicSpec)
+  overwriteAIC = function(self, aiType, aicSpec, failureHandlingOverride)
     if not initializedCheck() then
       return
     end
 
     for name, value in pairs(aicSpec) do
-      namespace:setAICValue(aiType, name, value)
+      namespace:setAICValue(aiType, name, value, failureHandlingOverride)
     end
   end,
 
-  overwriteAICsFromFile = function(self, aicFilePath)
+  overwriteAICsFromFile = function(self, aicFilePath, failureHandlingOverride)
     if not initializedCheck() then
       return
     end
@@ -168,7 +196,7 @@ namespace = {
     local aics = aicSpec.AICharacters
 
     for _, aic in pairs(aics) do
-      namespace:overwriteAIC(aic.Name, aic.Personality)
+      namespace:overwriteAIC(aic.Name, aic.Personality, failureHandlingOverride)
     end
   end,
 
