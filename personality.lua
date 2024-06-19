@@ -544,10 +544,12 @@ local function setAICValueOverride(aicField, index, valueFunction, resetFunction
   }
 end
 
-local function resetOverridenValues(aiType)
+local function receiveResetOfOverridenValues(aiType)
+  local resetTable = {}
   for _, override in pairs(aicFieldOverrides) do
-    override.resetFunction(aiType)
+    resetTable[override.index] = override.resetFunction(aiType)
   end
+  return resetTable
 end
 
 --[[ Get and Validate ]]--
@@ -572,5 +574,5 @@ end
 return {
   getAndValidateAicValue = getAndValidateAicValue,
   setAICValueOverride = setAICValueOverride,
-  resetOverridenValues = resetOverridenValues,
+  receiveResetOfOverridenValues = receiveResetOfOverridenValues,
 }

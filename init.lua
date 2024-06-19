@@ -23,6 +23,9 @@ local vanillaAIC = {}
 
 local additionalAIC = {}
 
+local function getAIStartAddress(aiType)
+  return aicArrayBaseAddr + 4 * 169 * aiType
+end
 
 local function receiveValidAiType(aiType)
   if type(aiType) == "string" then
@@ -49,8 +52,8 @@ local function initializedCheck()
 end
 
 local function saveVanillaAIC()
-  local vanillaStartAddr = aicArrayBaseAddr + 4 * 169
-  local vanillaEndAddr = aicArrayBaseAddr + 4 * 169 * 16 + 4 * 168
+  local vanillaStartAddr = getAIStartAddress(1)
+  local vanillaEndAddr = getAIStartAddress(16) + 4 * 168
   for addr = vanillaStartAddr, vanillaEndAddr, 4 do
     vanillaAIC[addr] = readInteger(addr)
   end
@@ -115,7 +118,14 @@ namespace = {
 
       -- call override reset here, since initialization is through
       for _, aiType in pairs(AICharacterName) do
-        Personality.resetOverridenValues(aiType)
+        local resetValues = Personality.receiveResetOfOverridenValues(aiType)
+        if next(resetValues) ~= nil then
+          local vanillaStartAddr = getAIStartAddress(aiType)
+
+          for index, resetValue in pairs(resetValues) do
+            writeInteger(vanillaStartAddr + index * 4, resetValue)
+          end
+        end
       end
 
       if config.aicFiles then
@@ -157,7 +167,7 @@ namespace = {
         return
       end
 
-      local aicAddr = aicArrayBaseAddr + ((4 * 169) * aiType)
+      local aicAddr = getAIStartAddress(aiType)
       local fieldIndex, fieldValue = Personality.getAndValidateAicValue(aicField, aicValue)
       writeInteger(aicAddr + (4 * fieldIndex), fieldValue)
       --TODO: optimize by writing a longer array of bytes... (would only apply to native AIC structure)
@@ -211,18 +221,17 @@ namespace = {
     if not initializedCheck() then
       return
     end
+    aiType = receiveValidAiType(aiType)
 
-    if type(aiType) == "string" then
-      aiType = aiTypeToInteger(aiType)
-    end
-
-    local vanillaStartAddr = aicArrayBaseAddr + 4 * 169 * aiType
-    local vanillaEndAddr = aicArrayBaseAddr + 4 * 169 * aiType + 4 * 168
+    local vanillaStartAddr = getAIStartAddress(aiType)
+    local vanillaEndAddr = vanillaStartAddr + 4 * 168
     for addr = vanillaStartAddr, vanillaEndAddr, 4 do
       writeInteger(addr, vanillaAIC[addr])
     end
 
-    Personality.resetOverridenValues(aiType)
+    for index, resetValue in pairs(Personality.receiveResetOfOverridenValues(aiType)) do
+      writeInteger(vanillaStartAddr + index * 4, resetValue)
+    end
 
     for _, additional in pairs(additionalAIC) do
       additional.resetFunction(aiType)
