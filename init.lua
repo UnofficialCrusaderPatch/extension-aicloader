@@ -238,22 +238,10 @@ namespace = {
     end
   end,
 
-  --[[
-    NOT RECOMMENDED TO USE  
-    `index == nil` removes override  
-    `valueFunction` needs to return final integer to write  
-    to allow renaming, there is no check if an index is overriden multiple times, so take care!  
-    `resetFunction` will always receive an AI index starting from 1 (Rat) to 16 (Abbot)  
-  ]]--
   setAICValueOverride = function(self, aicField, index, valueFunction, resetFunction)
     Personality.setAICValueOverride(aicField, index, valueFunction, resetFunction)
   end,
 
-  --[[
-    `handlerFunction == nil` removes additional AIC  
-    `handlerFunction` only gets the provided value, nothing else is done  
-    `resetFunction` will always reveive an AI index starting from 1 (Rat) to 16 (Abbot)
-  ]]--
   setAdditionalAICValue = function(self, aicField, handlerFunction, resetFunction)
     if handlerFunction == nil then
       additionalAIC[aicField] = nil
