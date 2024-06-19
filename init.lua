@@ -23,12 +23,20 @@ local vanillaAIC = {}
 
 local additionalAIC = {}
 
-local aiTypeToInteger = function(aiType)
-  local aiInteger = AICharacterName[aiType]
-  if aiInteger ~= nil then
-    return aiInteger
+
+local function receiveValidAiType(aiType)
+  if type(aiType) == "string" then
+    local aiInteger = AICharacterName[string.upper(aiType)]
+    if aiInteger ~= nil then
+      return aiInteger
+    end
+    error("no ai exists with the name: " .. aiType)
   end
-  error("no ai exists with the name: " .. aiType)
+
+  if aiType < 1 or aiType > 16 then
+    error("AI types must be between 1 and 16. Provided AI type: " .. aiType)
+  end
+  return aiType
 end
 
 local function initializedCheck()
@@ -51,6 +59,7 @@ end
 -- You can consider this a forward declaration
 local namespace = {}
 
+-- available only for the command module and not part of the documentation until the command module is fully added
 local commands = {
   onCommandSetAICValue = function(command)
     if not initializedCheck() then
@@ -140,9 +149,7 @@ namespace = {
     end
 
     local status, err = pcall(function()
-      if type(aiType) == "string" then
-        aiType = aiTypeToInteger(aiType)
-      end
+      aiType = receiveValidAiType(aiType)
 
       local additional = additionalAIC[aicField]
       if additional then
