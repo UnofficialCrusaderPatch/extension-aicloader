@@ -23,12 +23,23 @@ local vanillaAIC = {}
 
 local additionalAIC = {}
 
-local aiTypeToInteger = function(aiType)
-  local aiInteger = AICharacterName[aiType]
-  if aiInteger ~= nil then
-    return aiInteger
+local function getAIStartAddress(aiType)
+  return aicArrayBaseAddr + 4 * 169 * aiType
+end
+
+local function receiveValidAiType(aiType)
+  if type(aiType) == "string" then
+    local aiInteger = AICharacterName[string.upper(aiType)]
+    if aiInteger ~= nil then
+      return aiInteger
+    end
+    error("no ai exists with the name: " .. aiType)
   end
-  error("no ai exists with the name: " .. aiType)
+
+  if aiType < 1 or aiType > 16 then
+    error("AI types must be between 1 and 16. Provided AI type: " .. aiType)
+  end
+  return aiType
 end
 
 local function initializedCheck()
@@ -41,8 +52,8 @@ local function initializedCheck()
 end
 
 local function saveVanillaAIC()
-  local vanillaStartAddr = aicArrayBaseAddr + 4 * 169
-  local vanillaEndAddr = aicArrayBaseAddr + 4 * 169 * 16 + 4 * 168
+  local vanillaStartAddr = getAIStartAddress(1)
+  local vanillaEndAddr = getAIStartAddress(16) + 4 * 168
   for addr = vanillaStartAddr, vanillaEndAddr, 4 do
     vanillaAIC[addr] = readInteger(addr)
   end
@@ -51,6 +62,7 @@ end
 -- You can consider this a forward declaration
 local namespace = {}
 
+-- available only for the command module and not part of the documentation until the command module is fully added
 local commands = {
   onCommandSetAICValue = function(command)
     if not initializedCheck() then
@@ -106,7 +118,14 @@ namespace = {
 
       -- call override reset here, since initialization is through
       for _, aiType in pairs(AICharacterName) do
-        Personality.resetOverridenValues(aiType)
+        local resetValues = Personality.receiveResetOfOverridenValues(aiType)
+        if next(resetValues) ~= nil then
+          local vanillaStartAddr = getAIStartAddress(aiType)
+
+          for index, resetValue in pairs(resetValues) do
+            writeInteger(vanillaStartAddr + index * 4, resetValue)
+          end
+        end
       end
 
       if config.aicFiles then
@@ -140,9 +159,7 @@ namespace = {
     end
 
     local status, err = pcall(function()
-      if type(aiType) == "string" then
-        aiType = aiTypeToInteger(aiType)
-      end
+      aiType = receiveValidAiType(aiType)
 
       local additional = additionalAIC[aicField]
       if additional then
@@ -150,7 +167,7 @@ namespace = {
         return
       end
 
-      local aicAddr = aicArrayBaseAddr + ((4 * 169) * aiType)
+      local aicAddr = getAIStartAddress(aiType)
       local fieldIndex, fieldValue = Personality.getAndValidateAicValue(aicField, aicValue)
       writeInteger(aicAddr + (4 * fieldIndex), fieldValue)
       --TODO: optimize by writing a longer array of bytes... (would only apply to native AIC structure)
@@ -204,40 +221,27 @@ namespace = {
     if not initializedCheck() then
       return
     end
+    aiType = receiveValidAiType(aiType)
 
-    if type(aiType) == "string" then
-      aiType = aiTypeToInteger(aiType)
-    end
-
-    local vanillaStartAddr = aicArrayBaseAddr + 4 * 169 * aiType
-    local vanillaEndAddr = aicArrayBaseAddr + 4 * 169 * aiType + 4 * 168
+    local vanillaStartAddr = getAIStartAddress(aiType)
+    local vanillaEndAddr = vanillaStartAddr + 4 * 168
     for addr = vanillaStartAddr, vanillaEndAddr, 4 do
       writeInteger(addr, vanillaAIC[addr])
     end
 
-    Personality.resetOverridenValues(aiType)
+    for index, resetValue in pairs(Personality.receiveResetOfOverridenValues(aiType)) do
+      writeInteger(vanillaStartAddr + index * 4, resetValue)
+    end
 
     for _, additional in pairs(additionalAIC) do
       additional.resetFunction(aiType)
     end
   end,
 
-  --[[
-    NOT RECOMMENDED TO USE  
-    `index == nil` removes override  
-    `valueFunction` needs to return final integer to write  
-    to allow renaming, there is no check if an index is overriden multiple times, so take care!  
-    `resetFunction` will always receive an AI index starting from 1 (Rat) to 16 (Abbot)  
-  ]]--
   setAICValueOverride = function(self, aicField, index, valueFunction, resetFunction)
     Personality.setAICValueOverride(aicField, index, valueFunction, resetFunction)
   end,
 
-  --[[
-    `handlerFunction == nil` removes additional AIC  
-    `handlerFunction` only gets the provided value, nothing else is done  
-    `resetFunction` will always reveive an AI index starting from 1 (Rat) to 16 (Abbot)
-  ]]--
   setAdditionalAICValue = function(self, aicField, handlerFunction, resetFunction)
     if handlerFunction == nil then
       additionalAIC[aicField] = nil
