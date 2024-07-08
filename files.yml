@@ -1,7 +1,7 @@
 files:
   - src: "*.lua"
   - src: "*.yml"
-  - src: "resources\vanilla.json"
+  - src: "resources/vanilla.json"
     target: "vanilla.json"
   - src: "locale"
     target: "."
