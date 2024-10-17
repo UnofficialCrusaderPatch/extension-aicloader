@@ -5,15 +5,14 @@ local AICharacterName = require("characters")
 
 local Personality = require("personality")
 
+local getAIStartAddress = require("addresses").getAIStartAddress
+
 local FailureHandling = {
   WARN_LOG = "WARN_LOG",
   ERROR_LOG = "ERROR_LOG",
   FATAL_LOG = "FATAL_LOG",
   CHAT_TEXT = "CHAT_TEXT",
 }
-
-local aicArrayBaseAddr = core.readInteger(core.AOBScan(
-  "? ? ? ? e8 ? ? ? ? 89 1d ? ? ? ? 83 3d ? ? ? ? 00 75 44 6a 08 b9 ? ? ? ? e8 ? ? ? ? 85 c0 74 34 8b c5 2b 05"))
 
 local failureHandlingSetting = FailureHandling.ERROR_LOG
 local commandsActive = false
@@ -22,10 +21,6 @@ local isInitialized = false
 local vanillaAIC = {}
 
 local additionalAIC = {}
-
-local function getAIStartAddress(aiType)
-  return aicArrayBaseAddr + 4 * 169 * aiType
-end
 
 local function receiveValidAiType(aiType)
   if type(aiType) == "string" then
