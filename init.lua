@@ -169,7 +169,7 @@ namespace = {
     end)
 
     if not status then
-      local message = string.format("Error while setting '%s': %s", aicField, err)
+      local message = string.format("Error for AI '%s' while setting '%s': %s", aiType, aicField, err)
 
       local failureHandling = failureHandlingOverride or failureHandlingSetting
       if failureHandling == FailureHandling.WARN_LOG then
