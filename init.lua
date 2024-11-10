@@ -42,7 +42,7 @@ local function initializedCheck()
     return true
   end
 
-  log(WARN, "AIC loader not yet initialized. Call ignored.")
+  log(WARNING, "AIC loader not yet initialized. Call ignored.")
   return false
 end
 
