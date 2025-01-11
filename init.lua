@@ -147,6 +147,37 @@ namespace = {
     log(DEBUG, "AIC loader disable called. Does nothing.")
   end,
 
+  getAICValue = function(self, aiType, aicField)
+    if not initializedCheck() then
+      return
+    end
+
+    local status, err = pcall(function()
+      aiType = receiveValidAiType(aiType)
+
+      local additional = additionalAIC[aicField]
+      if additional then
+        return additional.handlerFunction(aiType, nil)
+      end
+
+      local aicAddr = getAIStartAddress(aiType)
+      local fieldIndex = Personality.aiFieldIndex[aicField]
+      if fieldIndex == nil then
+        error(string.format("Unknown AIC field: '%s'", aicField), 0)
+      end
+      local rawValue = core.readInteger(aicAddr + (4 * fieldIndex))
+
+      -- TODO: improve return results for enum values that have string names
+
+      return rawValue
+    end)
+
+    if status ~= true then
+      error(err)
+    end
+
+    return err -- is the result
+  end,
 
   setAICValue = function(self, aiType, aicField, aicValue, failureHandlingOverride)
     if not initializedCheck() then
@@ -261,6 +292,7 @@ namespace = {
 
 return namespace, {
   public = {
+    "getAICValue",
     "setAICValue",
     "resetAIC",
     "overwriteAIC",

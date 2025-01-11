@@ -575,4 +575,5 @@ return {
   getAndValidateAicValue = getAndValidateAicValue,
   setAICValueOverride = setAICValueOverride,
   receiveResetOfOverridenValues = receiveResetOfOverridenValues,
+  aiFieldIndex = aiFieldIndex,
 }
