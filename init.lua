@@ -20,7 +20,7 @@ local commandsActive = false
 local isInitialized = false
 local vanillaAIC = {}
 
-local additionalAIC = {}
+local additionalAIC = require("additional")
 
 local function receiveValidAiType(aiType)
   if type(aiType) == "string" then
