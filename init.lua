@@ -22,6 +22,40 @@ local vanillaAIC = {}
 
 local additionalAIC = {}
 
+local transactions = require("transactions").new({
+  additional = additionalAIC,
+  validate = Personality.getAndValidateAicValue,
+  index = function(field) return Personality.aiFieldIndex[field] end,
+  read = function(aiType, index) return readInteger(getAIStartAddress(aiType) + index * 4) end,
+  write = function(aiType, index, value) writeInteger(getAIStartAddress(aiType) + index * 4, value) end,
+  defaults = function(aiType)
+    local values = {}
+    local address = getAIStartAddress(aiType)
+    for index = 0, 168 do values[index] = vanillaAIC[address + index * 4] end
+    for index, value in pairs(Personality.receiveResetOfOverridenValues(aiType)) do values[index] = value end
+    return values
+  end,
+})
+
+local function reportUpdateFailure(message, failureHandlingOverride)
+  if transactions.isPoisoned() then
+    log(FATAL, message)
+    error(message, 0)
+  end
+  local failureHandling = failureHandlingOverride or failureHandlingSetting
+  if failureHandling == FailureHandling.WARN_LOG then
+    log(WARNING, message)
+  elseif failureHandling == FailureHandling.ERROR_LOG then
+    log(ERROR, message)
+  elseif failureHandling == FailureHandling.FATAL_LOG then
+    log(FATAL, message)
+  elseif commandsActive and failureHandling == FailureHandling.CHAT_TEXT then
+    modules.commands:displayChatText(message)
+  else
+    log(ERROR, message)
+  end
+end
+
 local function receiveValidAiType(aiType)
   if type(aiType) == "string" then
     local aiInteger = AICharacterName[string.upper(aiType)]
@@ -180,12 +214,15 @@ namespace = {
   end,
 
   setAICValue = function(self, aiType, aicField, aicValue, failureHandlingOverride)
+    transactions.assertMutable()
     if not initializedCheck() then
       return
     end
 
     local status, err = pcall(function()
       aiType = receiveValidAiType(aiType)
+
+      if transactions.update(aiType, {[aicField] = aicValue}, false) then return end
 
       local additional = additionalAIC[aicField]
       if additional then
@@ -202,24 +239,25 @@ namespace = {
     if not status then
       local message = string.format("Error for AI '%s' while setting '%s': %s", aiType, aicField, err)
 
-      local failureHandling = failureHandlingOverride or failureHandlingSetting
-      if failureHandling == FailureHandling.WARN_LOG then
-        log(WARNING, message)
-      elseif failureHandling == FailureHandling.ERROR_LOG then
-        log(ERROR, message)
-      elseif failureHandling == FailureHandling.FATAL_LOG then
-        log(FATAL, message)
-      elseif commandsActive and failureHandling == FailureHandling.CHAT_TEXT then
-        modules.commands:displayChatText(message)
-      else
-        log(ERROR, message) -- default handling
-      end
+      reportUpdateFailure(message, failureHandlingOverride)
     end
   end,
 
   overwriteAIC = function(self, aiType, aicSpec, failureHandlingOverride)
+    transactions.assertMutable()
     if not initializedCheck() then
       return
+    end
+
+    if transactions.hasProviders() then
+      local status, result = pcall(function()
+        return transactions.update(receiveValidAiType(aiType), aicSpec, false)
+      end)
+      if not status then
+        reportUpdateFailure(string.format("Error for AI '%s' while updating personality: %s", aiType, result), failureHandlingOverride)
+        return false, result
+      end
+      if result then return true end
     end
 
     for name, value in pairs(aicSpec) do
@@ -244,10 +282,13 @@ namespace = {
   end,
 
   resetAIC = function(self, aiType)
+    transactions.assertMutable()
     if not initializedCheck() then
       return
     end
     aiType = receiveValidAiType(aiType)
+
+    if transactions.update(aiType, {}, true) then return end
 
     local vanillaStartAddr = getAIStartAddress(aiType)
     local vanillaEndAddr = vanillaStartAddr + 4 * 168
@@ -265,6 +306,7 @@ namespace = {
   end,
 
   setAICValueOverride = function(self, aicField, index, valueFunction, resetFunction)
+    transactions.assertMutable()
     local additional = additionalAIC[aicField]
     if additional and additional.owner then
       error(string.format("AIC field '%s' is owned by '%s'.", aicField, additional.owner), 0)
@@ -273,6 +315,7 @@ namespace = {
   end,
 
   setAdditionalAICValue = function(self, aicField, handlerFunction, resetFunction)
+    transactions.assertMutable()
     local additional = additionalAIC[aicField]
     if additional and additional.owner then
       error(string.format("AIC field '%s' is owned by '%s'.", aicField, additional.owner), 0)
@@ -298,6 +341,7 @@ namespace = {
   end,
 
   registerAdditionalAICValue = function(self, owner, aicField, handlerFunction, resetFunction)
+    transactions.assertMutable()
     if type(owner) ~= "string" or owner == "" then
       error("An additional AIC owner must be a nonempty module name.", 0)
     end
@@ -323,6 +367,7 @@ namespace = {
   end,
 
   unregisterAdditionalAICValue = function(self, owner, aicField)
+    transactions.assertMutable()
     local additional = additionalAIC[aicField]
     if not additional or not additional.owner or additional.owner ~= owner then
       error(string.format("AIC field '%s' is not registered by '%s'.", tostring(aicField), tostring(owner)), 0)
@@ -333,6 +378,10 @@ namespace = {
   getAdditionalAICValueOwner = function(self, aicField)
     local additional = additionalAIC[aicField]
     return additional and additional.owner or nil
+  end,
+
+  registerAICUpdateProvider = function(self, owner, provider)
+    transactions.register(owner, provider)
   end,
 }
 
