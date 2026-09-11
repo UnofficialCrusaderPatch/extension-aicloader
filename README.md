@@ -121,6 +121,8 @@ remain responsible for validating their field domains,
 bounded condition rows, reset defaults and cross-field rules. The loader owns
 no policy or per-player state. Provider callbacks are trusted module code;
 the loader cannot roll back arbitrary side effects that violate this contract.
+Native override value/default callbacks invoked during staging must likewise be
+read-only. Audit existing providers before enrolling their fields in this path.
 
 For participating updates, the loader validates native fields without writing,
 then prepares every active provider in module-name order. It commits native
