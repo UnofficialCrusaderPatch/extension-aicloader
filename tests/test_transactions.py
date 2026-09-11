@@ -268,3 +268,14 @@ def test_failing_later_commit_rolls_back_providers_in_reverse_order(policy):
         assert(table.concat(order, ',') == 'commit-alpha,commit-zeta,rollback-zeta,rollback-alpha')
         assert(loader:getAICValue(2, 'TaxesMin') == 0)
     """)
+
+
+def test_declining_provider_does_not_reject_existing_cyclic_custom_data(policy):
+    policy.execute("""
+        local seen
+        loader:setAdditionalAICValue('OldData', function(_, value) seen=value end, reset)
+        local authored={}
+        authored.self=authored
+        loader:overwriteAIC(2, {OldData=authored})
+        assert(seen == authored and seen.self == authored)
+    """)

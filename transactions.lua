@@ -1,14 +1,13 @@
 -- Opt-in configuration transactions. Providers retain their own storage.
 local M = {}
 
-local function copyData(value, ancestors)
+local function copyData(value, copies)
   if type(value) ~= "table" then return value end
-  ancestors = ancestors or {}
-  assert(not ancestors[value], "AIC update data must not contain cycles")
-  ancestors[value] = true
+  copies = copies or {}
+  if copies[value] then return copies[value] end
   local copy = {}
-  for key, item in pairs(value) do copy[key] = copyData(item, ancestors) end
-  ancestors[value] = nil
+  copies[value] = copy
+  for key, item in pairs(value) do copy[key] = copyData(item, copies) end
   return copy
 end
 

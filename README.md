@@ -115,8 +115,9 @@ needed. The participant has two functions:
   that need later cleanup; a later provider may reject preparation.
 
 Callbacks receive separate data copies so mutating a changes table cannot
-change another provider's input or the caller's authored sheet. Cyclic data is
-unsupported. Providers remain responsible for validating their field domains,
+change another provider's input or the caller's authored sheet. Copies preserve
+shared/cyclic references; providers must reject unsupported structures. Providers
+remain responsible for validating their field domains,
 bounded condition rows, reset defaults and cross-field rules. The loader owns
 no policy or per-player state. Provider callbacks are trusted module code;
 the loader cannot roll back arbitrary side effects that violate this contract.
