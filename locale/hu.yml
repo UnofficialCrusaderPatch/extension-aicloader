@@ -1,0 +1,11 @@
+ai: MI
+misc: Egyéb
+general: AIC-betöltő
+general_descr: Az AIC-betöltő működését szabályozó beállítások.
+failureHandling_descr: Beállítja, hogyan reagáljon a játék az érvénytelen vagy ismeretlen AIC-értékekre.
+failureHandling_log: Naplózás
+failureHandling_message: Üzenet megjelenítése
+failureHandling_abort: Megszakítás
+tags.ai: MI
+tags.aic: MI-viselkedés
+tags.tools: Eszközök

@@ -1,0 +1,11 @@
+ai: IA
+misc: Divers
+general: Chargeur AIC
+general_descr: Options contrôlant le fonctionnement du chargeur AIC.
+failureHandling_descr: Définit la réaction du jeu aux valeurs AIC invalides ou inconnues.
+failureHandling_log: Journaliser
+failureHandling_message: Afficher un message
+failureHandling_abort: Interrompre
+tags.ai: IA
+tags.aic: Comportement IA
+tags.tools: Outils

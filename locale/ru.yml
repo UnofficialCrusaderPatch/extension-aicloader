@@ -1,0 +1,11 @@
+ai: ИИ
+misc: Разное
+general: Загрузчик AIC
+general_descr: Настройки поведения загрузчика AIC.
+failureHandling_descr: Определяет реакцию игры на недопустимые или неизвестные значения AIC.
+failureHandling_log: Записать в журнал
+failureHandling_message: Показать сообщение
+failureHandling_abort: Прервать
+tags.ai: ИИ
+tags.aic: Поведение ИИ
+tags.tools: Инструменты

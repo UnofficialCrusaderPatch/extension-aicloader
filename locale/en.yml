@@ -6,3 +6,6 @@ failureHandling_descr: Set how the game should react to invalid or unknown AIC v
 failureHandling_log: Log
 failureHandling_message: Message
 failureHandling_abort: Abort
+tags.ai: AI
+tags.aic: AI behavior
+tags.tools: Tools

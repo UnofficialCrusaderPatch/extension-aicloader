@@ -1,0 +1,11 @@
+ai: KI
+misc: Sonstiges
+general: AIC-Lader
+general_descr: Einstellungen für das Verhalten des AIC-Laders.
+failureHandling_descr: Legt fest, wie das Spiel auf ungültige oder unbekannte AIC-Werte reagiert.
+failureHandling_log: Protokollieren
+failureHandling_message: Meldung anzeigen
+failureHandling_abort: Abbrechen
+tags.ai: KI
+tags.aic: KI-Verhalten
+tags.tools: Werkzeuge
