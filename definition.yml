@@ -9,8 +9,3 @@ tags:
 - ai
 - aic
 - tools
-capabilities:
-  files: true
-  code: true
-  configuration: false
-  options: true

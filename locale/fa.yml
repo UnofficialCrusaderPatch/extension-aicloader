@@ -1,0 +1,11 @@
+ai: هوش مصنوعی
+misc: متفرقه
+general: بارگذار AIC
+general_descr: گزینه‌های کنترل رفتار بارگذار AIC.
+failureHandling_descr: تعیین می‌کند بازی به مقادیر نامعتبر یا ناشناختهٔ AIC چگونه واکنش نشان دهد.
+failureHandling_log: ثبت در گزارش
+failureHandling_message: نمایش پیام
+failureHandling_abort: توقف
+tags.ai: هوش مصنوعی
+tags.aic: رفتار هوش مصنوعی
+tags.tools: ابزارها

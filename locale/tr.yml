@@ -1,0 +1,11 @@
+ai: Yapay zekâ
+misc: Diğer
+general: AIC yükleyici
+general_descr: AIC yükleyicinin davranışını belirleyen seçenekler.
+failureHandling_descr: Oyunun geçersiz veya bilinmeyen AIC değerlerine nasıl tepki vereceğini belirler.
+failureHandling_log: Günlüğe yaz
+failureHandling_message: Mesaj göster
+failureHandling_abort: Durdur
+tags.ai: Yapay zekâ
+tags.aic: Yapay zekâ davranışı
+tags.tools: Araçlar

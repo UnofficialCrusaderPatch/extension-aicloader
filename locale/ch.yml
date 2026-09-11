@@ -1,0 +1,11 @@
+ai: AI
+misc: 杂项
+general: AIC 加载器
+general_descr: 控制 AIC 加载器行为的选项。
+failureHandling_descr: 设置游戏如何处理无效或未知的 AIC 值。
+failureHandling_log: 记录日志
+failureHandling_message: 显示消息
+failureHandling_abort: 中止
+tags.ai: 人工智能
+tags.aic: AI 行为
+tags.tools: 工具
