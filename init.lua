@@ -181,6 +181,13 @@ namespace = {
     log(DEBUG, "AIC loader disable called. Does nothing.")
   end,
 
+  -- Native modules need the same resolved storage used by all Loader accessors.
+  -- Metadata is available before afterInit; reading values still follows the
+  -- normal game lifecycle. Returning a fresh table prevents metadata mutation.
+  getNativeAICLayout = function(self)
+    return {version=1, address=getAIStartAddress(1), characters=16, stride=4*169}
+  end,
+
   getAICValue = function(self, aiType, aicField)
     if not initializedCheck() then
       return
