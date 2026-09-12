@@ -167,3 +167,5 @@ runtime state, synchronize multiplayer changes or establish replay compatibility
 
 To all of the UCP Team, the [Ghidra project](https://github.com/NationalSecurityAgency/ghidra) and
 of course to [Firefly Studios](https://fireflyworlds.com/), the creators of Stronghold Crusader.
+
+Version 1.1.5 corrects store packaging so `vanilla.json` is installed at the module root, matching the loader path. The runtime API is unchanged.
