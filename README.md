@@ -23,6 +23,14 @@ These options are provided to be set in the GUI:
 
 ### Lua-Exports
 
+Native modules can call `getNativeAICLayout()` (since 1.1.4) to obtain a fresh
+`{version=1, address, characters=16, stride=676}` descriptor. `address` is the
+first AI character's record, resolved by the same owner as `getAICValue` and
+personality updates. The descriptor is available before `afterInit`; native
+values are meaningful only at their normal game lifecycle. This module-only API
+does not authorize bypassing Loader validation or transactional setters and is
+not added to the public plugin API.
+
 The Lua exports are parameters and functions accessible through the module object. These are `self` calls and need to be called as `modules.aicloader:function(...)`.
 
 * `void setAICValue(aiType, aicField, aicValue, failureHandlingOverride)`  
@@ -159,3 +167,5 @@ runtime state, synchronize multiplayer changes or establish replay compatibility
 
 To all of the UCP Team, the [Ghidra project](https://github.com/NationalSecurityAgency/ghidra) and
 of course to [Firefly Studios](https://fireflyworlds.com/), the creators of Stronghold Crusader.
+
+Version 1.1.5 corrects store packaging so `vanilla.json` is installed at the module root, matching the loader path. The runtime API is unchanged.
