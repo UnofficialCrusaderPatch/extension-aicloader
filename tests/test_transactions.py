@@ -152,15 +152,24 @@ def test_rollback_failure_requires_clean_restart(policy):
         policy.execute("loader:setAICValue(2, 'TaxesMin', 1)")
 
 
-def test_nontransactional_callback_is_rejected_before_any_write(policy):
-    policy.execute("loader:setAdditionalAICValue('Other', function() error('must not run') end, reset)")
+def test_unowned_callback_runs_only_after_atomic_commit(policy):
     policy.execute("""
-        assert(loader:overwriteAIC(1, {RecruitPolicy='WeightedRoles', Other=1}) == false)
-        assert(#writes == 0 and commitCount == 0)
+        applied = {}
+        loader:setAdditionalAICValue('Other', function(ai, value) applied[#applied+1] = {value, commitCount} end,
+          function(ai) applied[#applied+1] = {'reset', commitCount} end)
+        assert(loader:overwriteAIC(1, {RecruitPolicy='Invalid', Other=1}) == false)
+        assert(#applied == 0 and #writes == 0 and commitCount == 0)
     """)
     activate(policy)
-    with pytest.raises(LuaError, match='Cannot atomically reset'):
-        policy.execute('loader:resetAIC(1)')
+    policy.execute("""
+        assert(#applied == 0)
+        assert(loader:overwriteAIC(1, {SortieWeight=10, Other=2}))
+        loader:setAICValue(1, 'Other', 3)
+        loader:resetAIC(1)
+        assert(applied[1][1] == 2 and applied[1][2] == 2)
+        assert(applied[2][1] == 3 and applied[2][2] == 3)
+        assert(applied[3][1] == 'reset' and applied[3][2] == 4)
+    """)
 
 
 def test_conflicting_aliases_are_rejected_only_in_atomic_path(policy):

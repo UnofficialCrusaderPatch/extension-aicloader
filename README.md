@@ -145,13 +145,13 @@ personality**, not across the entire file. An installed provider that requires
 execution to abort on invalid configuration must use fatal startup preflight;
 the existing warning/error-log modes do not by themselves reject match entry.
 
-An atomic update cannot call an arbitrary old additional-field setter: that API
-does not guarantee a getter or reversible effects. Every additional field in an
-atomic update must have an exclusive owner and an active update provider. An
-atomic full reset requires this for every registered additional field because
-reset covers all fields. Incompatible mixtures are rejected before writes; do
-not claim compatibility until each required old provider supplies a reversible
-contract. Native field aliases may appear together when their validated raw
+Additional fields registered with `setAdditionalAICValue` have no owner and are
+not part of the atomic set: that API does not guarantee a getter or reversible
+effects. After the atomic part commits, their handler functions (and on reset
+their reset functions) run as on the old path; on failure they do not run. Every
+owned additional field in an atomic update, and on reset every registered owned
+field, must have an active update provider; otherwise the update is rejected
+before writes. Native field aliases may appear together when their validated raw
 values agree; conflicting aliases are rejected in atomic mode. These restrictions
 do not apply to the old path when all providers decline.
 
@@ -169,3 +169,5 @@ To all of the UCP Team, the [Ghidra project](https://github.com/NationalSecurity
 of course to [Firefly Studios](https://fireflyworlds.com/), the creators of Stronghold Crusader.
 
 Version 1.1.5 corrects store packaging so `vanilla.json` is installed at the module root, matching the loader path. The runtime API is unchanged.
+
+Version 1.1.6 applies additional fields without an owner through their own handlers after an atomic update commits, instead of rejecting the update.
