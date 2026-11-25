@@ -56,6 +56,13 @@ local function reportUpdateFailure(message, failureHandlingOverride)
   end
 end
 
+local function fieldFailureReporter(aiType, action, failureHandlingOverride)
+  return function(field, reason)
+    reportUpdateFailure(string.format("Error for AI '%s' while %s '%s': %s", aiType, action, field, reason),
+      failureHandlingOverride)
+  end
+end
+
 local function receiveValidAiType(aiType)
   if type(aiType) == "string" then
     local aiInteger = AICharacterName[string.upper(aiType)]
@@ -229,7 +236,8 @@ namespace = {
     local status, err = pcall(function()
       aiType = receiveValidAiType(aiType)
 
-      if transactions.update(aiType, {[aicField] = aicValue}, false) then return end
+      if transactions.update(aiType, {[aicField] = aicValue}, false,
+        fieldFailureReporter(aiType, "setting", failureHandlingOverride)) then return end
 
       local additional = additionalAIC[aicField]
       if additional then
@@ -258,7 +266,8 @@ namespace = {
 
     if transactions.hasProviders() then
       local status, result = pcall(function()
-        return transactions.update(receiveValidAiType(aiType), aicSpec, false)
+        return transactions.update(receiveValidAiType(aiType), aicSpec, false,
+          fieldFailureReporter(aiType, "setting", failureHandlingOverride))
       end)
       if not status then
         reportUpdateFailure(string.format("Error for AI '%s' while updating personality: %s", aiType, result), failureHandlingOverride)
@@ -295,7 +304,7 @@ namespace = {
     end
     aiType = receiveValidAiType(aiType)
 
-    if transactions.update(aiType, {}, true) then return end
+    if transactions.update(aiType, {}, true, fieldFailureReporter(aiType, "resetting")) then return end
 
     local vanillaStartAddr = getAIStartAddress(aiType)
     local vanillaEndAddr = vanillaStartAddr + 4 * 168

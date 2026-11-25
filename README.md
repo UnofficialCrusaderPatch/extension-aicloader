@@ -148,7 +148,9 @@ the existing warning/error-log modes do not by themselves reject match entry.
 Additional fields registered with `setAdditionalAICValue` have no owner and are
 not part of the atomic set: that API does not guarantee a getter or reversible
 effects. After the atomic part commits, their handler functions (and on reset
-their reset functions) run as on the old path; on failure they do not run. Every
+their reset functions) run as on the old path; on failure they do not run. Each
+runs on its own; its error is reported for that field with the selected failure
+handling and leaves the committed update applied. Every
 owned additional field in an atomic update, and on reset every registered owned
 field, must have an active update provider; otherwise the update is rejected
 before writes. Native field aliases may appear together when their validated raw

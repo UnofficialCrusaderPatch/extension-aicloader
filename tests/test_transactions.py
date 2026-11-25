@@ -169,6 +169,20 @@ def test_unowned_callback_runs_only_after_atomic_commit(policy):
         assert(applied[1][1] == 2 and applied[1][2] == 2)
         assert(applied[2][1] == 3 and applied[2][2] == 3)
         assert(applied[3][1] == 'reset' and applied[3][2] == 4)
+
+        loader:setAdditionalAICValue('Bad', function() error('Injected handler failure') end,
+          function() error('Injected reset failure') end)
+        applied, messages = {}, {}
+        assert(loader:overwriteAIC(1, {SortieWeight=10, TaxesMin=2, Bad=1, Other=5}))
+        assert(loader:getAICValue(1, 'TaxesMin') == 2 and applied[1][1] == 5)
+        assert(#messages == 1 and messages[1]:find("'Bad'") and messages[1]:find('Injected handler failure'))
+        messages = {}
+        loader:setAICValue(1, 'Bad', 2)
+        assert(#messages == 1 and messages[1]:find('Injected handler failure'))
+        messages = {}
+        loader:resetAIC(1)
+        assert(loader:getAICValue(1, 'TaxesMin') == 0 and applied[2][1] == 'reset')
+        assert(#messages == 1 and messages[1]:find('Injected reset failure'))
     """)
 
 
