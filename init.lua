@@ -58,8 +58,9 @@ end
 
 local function fieldFailureReporter(aiType, action, failureHandlingOverride)
   return function(field, reason)
-    reportUpdateFailure(string.format("Error for AI '%s' while %s '%s': %s", aiType, action, field, reason),
-      failureHandlingOverride)
+    local printable, text = pcall(tostring, reason)
+    reportUpdateFailure(string.format("Error for AI '%s' while %s '%s': %s", aiType, action, field,
+      printable and text or "(error without a message)"), failureHandlingOverride)
   end
 end
 
