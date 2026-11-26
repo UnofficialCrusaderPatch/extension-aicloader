@@ -572,6 +572,9 @@ local function getAndValidateAicValue(aicField, aicValue)
 end
 
 return {
+  hasAICField = function(aicField)
+    return aiFieldIndex[aicField] ~= nil or aicFieldOverrides[aicField] ~= nil
+  end,
   getAndValidateAicValue = getAndValidateAicValue,
   setAICValueOverride = setAICValueOverride,
   receiveResetOfOverridenValues = receiveResetOfOverridenValues,

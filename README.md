@@ -54,6 +54,43 @@ Adds an completely new AIC value for the loader to handle.
 `aicField` functions as an identifier for this setting, while `handlerFunction` receives the AI slot index and the provided value. The actual value handling needs to happen at the side of the provider. If the `handlerFunction` is set to `nil`, the new AIC value is removed. `resetFunction` will always receive an AI slot index starting from 1 (Rat) to 16 (Abbot) and needs to reset the value to the default for this slot.
 
 
+### Exclusive additional field registration
+
+New modules can use `registerAdditionalAICValue(owner, aicField, handlerFunction,
+resetFunction)` to claim a field exclusively. Use the module name as `owner`.
+Registration rejects native names (including aliases), registered overrides,
+and any existing additional handler, including another registration by the same
+owner. Register once during module setup. This API is available to modules,
+not plugins; personality application continues through the existing public APIs.
+
+The provider owns the storage and validation. Its handler receives the AI
+character slot (1–16) and the value on set; on get it receives nil and must return
+the current authored value without changing state. Its reset callback restores
+that slot's default. Slots are personality configuration, not player runtime
+state: two players using the same character share configuration only.
+
+`getAdditionalAICValueOwner(aicField)` returns the registered module name, or nil
+for an unknown/native field or a handler registered with the older API.
+`unregisterAdditionalAICValue(owner, aicField)` removes only a matching exclusive
+registration. It does not reset or migrate provider state; the provider must use
+a safe lifecycle boundary. Owner names coordinate modules; they are not a
+security boundary against privileged code.
+
+Neither `setAdditionalAICValue` (including its nil removal form) nor
+`setAICValueOverride` can replace or remove an exclusively claimed name. Existing
+unclaimed additional fields retain their original replacement/removal behavior.
+Native field indices, values, validation and layout are unchanged. Existing AIC
+files require no conversion. To migrate a module, replace its registration call
+with the exclusive API and implement the nil getter if missing. Do not rewrite
+personality files. Rolling back the module requires its original loader API call;
+declare a loader version with this capability in the module's package dependency
+once that loader version is released.
+
+This registration API does **not** make `overwriteAIC` atomic or authorize live
+simulation changes. Its existing per-field failure handling remains in effect.
+Whole-row probability validation and synchronized save/replay state are separate
+prerequisites for extended recruitment policies.
+
 ### Special Thanks
 
 To all of the UCP Team, the [Ghidra project](https://github.com/NationalSecurityAgency/ghidra) and

@@ -265,10 +265,18 @@ namespace = {
   end,
 
   setAICValueOverride = function(self, aicField, index, valueFunction, resetFunction)
+    local additional = additionalAIC[aicField]
+    if additional and additional.owner then
+      error(string.format("AIC field '%s' is owned by '%s'.", aicField, additional.owner), 0)
+    end
     Personality.setAICValueOverride(aicField, index, valueFunction, resetFunction)
   end,
 
   setAdditionalAICValue = function(self, aicField, handlerFunction, resetFunction)
+    local additional = additionalAIC[aicField]
+    if additional and additional.owner then
+      error(string.format("AIC field '%s' is owned by '%s'.", aicField, additional.owner), 0)
+    end
     if handlerFunction == nil then
       additionalAIC[aicField] = nil
       return
@@ -287,6 +295,44 @@ namespace = {
       handlerFunction = handlerFunction,
       resetFunction = resetFunction,
     }
+  end,
+
+  registerAdditionalAICValue = function(self, owner, aicField, handlerFunction, resetFunction)
+    if type(owner) ~= "string" or owner == "" then
+      error("An additional AIC owner must be a nonempty module name.", 0)
+    end
+    if type(aicField) ~= "string" or aicField == "" then
+      error("An additional AIC field must have a nonempty name.", 0)
+    end
+    if Personality.hasAICField(aicField) then
+      error(string.format("AIC field '%s' is already a native field or override.", aicField), 0)
+    end
+    local additional = additionalAIC[aicField]
+    if additional then
+      error(string.format("AIC field '%s' is already registered by '%s'.",
+        aicField, additional.owner or "an unowned legacy handler"), 0)
+    end
+    if type(handlerFunction) ~= "function" or type(resetFunction) ~= "function" then
+      error(string.format("AIC field '%s' requires handler and reset functions.", aicField), 0)
+    end
+    additionalAIC[aicField] = {
+      owner = owner,
+      handlerFunction = handlerFunction,
+      resetFunction = resetFunction,
+    }
+  end,
+
+  unregisterAdditionalAICValue = function(self, owner, aicField)
+    local additional = additionalAIC[aicField]
+    if not additional or not additional.owner or additional.owner ~= owner then
+      error(string.format("AIC field '%s' is not registered by '%s'.", tostring(aicField), tostring(owner)), 0)
+    end
+    additionalAIC[aicField] = nil
+  end,
+
+  getAdditionalAICValueOwner = function(self, aicField)
+    local additional = additionalAIC[aicField]
+    return additional and additional.owner or nil
   end,
 }
 
