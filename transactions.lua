@@ -21,6 +21,11 @@ local function sortedKeys(values)
   return keys
 end
 
+local function text(value)
+  local printable, result = pcall(tostring, value)
+  return printable and result or "(error without a message)"
+end
+
 function M.new(deps)
   local providers = {}
   local busy, poisoned = false, false
@@ -121,16 +126,17 @@ function M.new(deps)
         local failures = {}
         for i = committed, 1, -1 do
           local restored, failure = pcall(operations[i].rollback)
-          if not restored then failures[#failures + 1] = tostring(failure) end
+          if not restored then failures[#failures + 1] = failure end
         end
         for i = written, 1, -1 do
           local index = indices[i]
           local restored, failure = pcall(deps.write, aiType, index, previous[index])
-          if not restored then failures[#failures + 1] = tostring(failure) end
+          if not restored then failures[#failures + 1] = failure end
         end
         if #failures > 0 then
           poisoned = true
-          error(tostring(reason) .. "; AIC rollback failed; clean restart required: " .. table.concat(failures, "; "), 0)
+          for i, failure in ipairs(failures) do failures[i] = text(failure) end
+          error(text(reason) .. "; AIC rollback failed; clean restart required: " .. table.concat(failures, "; "), 0)
         end
         error(reason, 0)
       end
