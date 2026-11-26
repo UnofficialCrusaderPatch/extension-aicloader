@@ -5,7 +5,8 @@ local AICharacterName = require("characters")
 
 local Personality = require("personality")
 
-local getAIStartAddress = require("addresses").getAIStartAddress
+local addresses = require("addresses")
+local getAIStartAddress = addresses.getAIStartAddress
 
 local FailureHandling = {
   WARN_LOG = "WARN_LOG",
@@ -193,7 +194,7 @@ namespace = {
   -- Metadata is available before afterInit; reading values still follows the
   -- normal game lifecycle. Returning a fresh table prevents metadata mutation.
   getNativeAICLayout = function(self)
-    return {version=1, address=getAIStartAddress(1), characters=16, stride=4*169}
+    return {version=1, address=getAIStartAddress(1), characters=addresses.characters, stride=addresses.stride}
   end,
 
   getAICValue = function(self, aiType, aicField)
