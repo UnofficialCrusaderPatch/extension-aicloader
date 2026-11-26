@@ -109,7 +109,9 @@ needed. The participant has two functions:
   this provider's atomic contract. Select both already-active personalities and
   updates that explicitly activate its fields. For a reset, `changes` is empty
   and `resetting` is true. Omitted/native personalities must be declined when
-  the provider has no effective configuration. This callback must be read-only.
+  the provider has no effective configuration; on reset the loader then calls
+  the reset callbacks of its owned fields, which must have nothing to roll back.
+  This callback must be read-only.
 * `prepare(aiType, changes, readNative, resetting)` validates the whole change
   against the provider's currently authored configuration and creates detached
   candidate state. `readNative(field)` returns the prospective raw native value,
@@ -151,11 +153,13 @@ effects. After the atomic part commits, their handler functions (and on reset
 their reset functions) run as on the old path; on failure they do not run. Each
 runs on its own; its error is reported for that field with the selected failure
 handling and leaves the committed update applied. Every
-owned additional field in an atomic update, and on reset every registered owned
-field, must have an active update provider; otherwise the update is rejected
-before writes. Native field aliases may appear together when their validated raw
-values agree; conflicting aliases are rejected in atomic mode. These restrictions
-do not apply to the old path when all providers decline.
+owned additional field in an atomic update must have an active update provider;
+otherwise the update is rejected before writes. On reset, owned fields whose
+owner declined are reset through their reset callbacks after the native writes
+and before provider commits; an error rejects the reset and rolls it back.
+Native field aliases may appear together when their validated raw values agree;
+conflicting aliases are rejected in atomic mode. These restrictions do not apply
+to the old path when all providers decline.
 
 No providers registered, or all providers declining, retains the existing
 per-field best-effort path and its validation. Old AICs require no conversion.
@@ -173,3 +177,5 @@ of course to [Firefly Studios](https://fireflyworlds.com/), the creators of Stro
 Version 1.1.5 corrects store packaging so `vanilla.json` is installed at the module root, matching the loader path. The runtime API is unchanged.
 
 Version 1.1.6 applies additional fields without an owner through their own handlers after an atomic update commits, instead of rejecting the update.
+
+Version 1.1.7 resets owned fields whose owner declines a reset through their reset callbacks inside the atomic reset, instead of rejecting the reset.

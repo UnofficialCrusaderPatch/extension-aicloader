@@ -56,6 +56,7 @@ function M.new(deps)
   -- Returns false when every provider declines, preserving the old write path.
   -- Unowned additional fields are not atomic; their handlers run after commit.
   -- A handler error is passed to report(field, reason) and leaves the update applied.
+  -- A reset commits the reset callbacks of owned fields whose owner declined.
   function api.update(aiType, spec, resetting, report)
     api.assertMutable()
     if next(providers) == nil then return false end
@@ -75,12 +76,15 @@ function M.new(deps)
       local staged, previous, operations = {}, {}, {}
       if resetting then
         staged = deps.defaults(aiType)
-        for field, additional in pairs(deps.additional) do
-          if additional.owner then
-            assert(selected[additional.owner],
-              "Cannot atomically reset AIC field without an active update provider: " .. field)
-          else
+        for _, field in ipairs(sortedKeys(deps.additional)) do
+          local additional = deps.additional[field]
+          if not additional.owner then
             unowned[#unowned + 1] = {field, function() additional.resetFunction(aiType) end}
+          elseif not selected[additional.owner] then
+            operations[#operations + 1] = {
+              commit = function() additional.resetFunction(aiType) end,
+              rollback = function() end,
+            }
           end
         end
       else
