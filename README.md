@@ -110,7 +110,7 @@ needed. The participant has two functions:
   updates that explicitly activate its fields. For a reset, `changes` is empty
   and `resetting` is true. Omitted/native personalities must be declined when
   the provider has no effective configuration; on reset the loader then calls
-  the reset callbacks of its owned fields, which must have nothing to roll back.
+  the reset callbacks of its owned fields after the reset commits.
   This callback must be read-only.
 * `prepare(aiType, changes, readNative, resetting)` validates the whole change
   against the provider's currently authored configuration and creates detached
@@ -152,11 +152,11 @@ not part of the atomic set: that API does not guarantee a getter or reversible
 effects. After the atomic part commits, their handler functions (and on reset
 their reset functions) run as on the old path; on failure they do not run. Each
 runs on its own; its error is reported for that field with the selected failure
-handling and leaves the committed update applied. Every
+handling once and leaves the committed update applied. Every
 owned additional field in an atomic update must have an active update provider;
 otherwise the update is rejected before writes. On reset, owned fields whose
-owner declined are reset through their reset callbacks after the native writes
-and before provider commits; an error rejects the reset and rolls it back.
+owner declined are reset through their reset callbacks after the reset commits,
+like fields without an owner.
 Native field aliases may appear together when their validated raw values agree;
 conflicting aliases are rejected in atomic mode. These restrictions do not apply
 to the old path when all providers decline.
@@ -178,4 +178,4 @@ Version 1.1.5 corrects store packaging so `vanilla.json` is installed at the mod
 
 Version 1.1.6 applies additional fields without an owner through their own handlers after an atomic update commits, instead of rejecting the update.
 
-Version 1.1.7 resets owned fields whose owner declines a reset through their reset callbacks inside the atomic reset, instead of rejecting the reset.
+Version 1.1.7 resets owned fields whose owner declines a reset through their reset callbacks after the atomic reset commits, instead of rejecting the reset.
