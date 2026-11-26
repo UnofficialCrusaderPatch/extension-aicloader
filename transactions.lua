@@ -123,19 +123,20 @@ function M.new(deps)
         end
       end)
       if not committedOK then
-        local failures = {}
+        -- Counted separately: a failure's error value can be nil.
+        local failures, failed = {}, 0
         for i = committed, 1, -1 do
           local restored, failure = pcall(operations[i].rollback)
-          if not restored then failures[#failures + 1] = failure end
+          if not restored then failed = failed + 1; failures[failed] = failure end
         end
         for i = written, 1, -1 do
           local index = indices[i]
           local restored, failure = pcall(deps.write, aiType, index, previous[index])
-          if not restored then failures[#failures + 1] = failure end
+          if not restored then failed = failed + 1; failures[failed] = failure end
         end
-        if #failures > 0 then
+        if failed > 0 then
           poisoned = true
-          for i, failure in ipairs(failures) do failures[i] = text(failure) end
+          for i = 1, failed do failures[i] = text(failures[i]) end
           error(text(reason) .. "; AIC rollback failed; clean restart required: " .. table.concat(failures, "; "), 0)
         end
         error(reason, 0)
