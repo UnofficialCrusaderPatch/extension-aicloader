@@ -23,7 +23,9 @@ These options are provided to be set in the GUI:
 
 ### Lua-Exports
 
-Native modules can call `getNativeAICLayout()` (since 1.1.4) to obtain a fresh
+AIC Tactics' native code uses the Loader's resolved personality table instead of
+locating it independently. Modules that need native access can call
+`getNativeAICLayout()` (since 1.1.4) to obtain a fresh
 `{version=1, address, characters=16, stride=676}` descriptor. `address` is the
 first AI character's record, resolved by the same owner as `getAICValue` and
 personality updates. The descriptor is available before `afterInit`; native
@@ -99,6 +101,10 @@ that need whole-personality validation must also use the following update API.
 Neither API authorizes unsynchronized live simulation changes.
 
 ### Prepared personality updates
+
+AIC Tactics can apply recruitment rules from a personality alongside the game's
+AIC values. It validates the whole personality before either part changes, so
+a rejected recruitment rule cannot leave new game values paired with old rules.
 
 `registerAICUpdateProvider(owner, provider)` registers one module-owned update
 participant, once at setup. It is a module API, not a plugin API. Existing AI
