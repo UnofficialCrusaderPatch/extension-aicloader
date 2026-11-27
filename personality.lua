@@ -159,7 +159,7 @@ local function isBoolean(value)
         elseif value == "0" then
             value = 0
         else
-            rejectValue("incomprehensible boolean value: " .. value)
+            error("incomprehensible boolean value: " .. value, 0)
         end
         return value
     end
