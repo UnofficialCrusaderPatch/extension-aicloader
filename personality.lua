@@ -10,10 +10,18 @@ local UNSIGNED_INT_MAX = 2^32 - 1
 
 --[[ Validation Functions ]]--
 
+local warningType = {__tostring = function(reason) return reason.message end}
+
+local function rejectValue(message)
+  error(setmetatable({message = message}, warningType), 0)
+end
+
 local function throwMinMaxError(value, valueType, minValue, maxValue, extendError)
   local stringError = extendError and " " .. extendError or ""
-  error(string.format("Received '%s'. Must be %s between %d and %d.%s", value,
-      valueType, minValue, maxValue, stringError), 0)
+  local message = string.format("Received '%s'. Must be %s between %d and %d.%s", value,
+      valueType, minValue, maxValue, stringError)
+  if type(value) ~= "number" then error(message, 0) end
+  rejectValue(message)
 end
 
 local function isInteger(value)
@@ -81,9 +89,12 @@ local function isProperFieldValue(fieldEnum, value)
   if FieldTypes[fieldEnum] == nil then
     error(fieldEnum .. " is no valid field enum. This should not happen.", 0)
   end
+  if type(value) ~= "string" then
+    error(string.format("Expected a string for '%s', received %s.", fieldEnum, type(value)), 0)
+  end
   local result = FieldTypes[fieldEnum][value]
   if result == nil then
-    error(string.format("'%s' is no valid value for '%s'.", value, fieldEnum), 0)
+    rejectValue(string.format("'%s' is no valid value for '%s'.", value, fieldEnum))
   end
   return result
 end
@@ -132,7 +143,7 @@ local function isBoolean(value)
 
     if type(value) == "number" then
         if value ~= 1 and value ~= 0 then
-            error("incomprehensible boolean value: " .. value, 0)
+            rejectValue("incomprehensible boolean value: " .. value)
         else
             return value
         end
@@ -148,11 +159,12 @@ local function isBoolean(value)
         elseif value == "0" then
             value = 0
         else
-            error("incomprehensible boolean value: " .. value, 0)
+            rejectValue("incomprehensible boolean value: " .. value)
         end
+        return value
     end
 
-    return value
+    error("Expected a boolean, number or string, received " .. type(value) .. ".", 0)
 end
 
 local function handleDefSiegeEngineGoldThreshold(value)
@@ -562,7 +574,7 @@ local function getAndValidateAicValue(aicField, aicValue)
 
   local valueIndex = aiFieldIndex[aicField]
   if valueIndex == nil then
-    error(string.format("Unknown AIC field: '%s'", aicField), 0)
+    rejectValue(string.format("Unknown AIC field: '%s'", aicField))
   end
   local valueFunction = aiFieldFunction[valueIndex]
   if valueFunction == nil then
@@ -572,6 +584,7 @@ local function getAndValidateAicValue(aicField, aicValue)
 end
 
 return {
+  isValidationWarning = function(reason) return getmetatable(reason) == warningType end,
   hasAICField = function(aicField)
     return aiFieldIndex[aicField] ~= nil or aicFieldOverrides[aicField] ~= nil
   end,

@@ -1,5 +1,5 @@
 general: AIC Loader
-failureHandling_descr: "Invalid AI settings"
+failureHandling_descr: "AI setting validation"
 failureHandling_log: "Log a warning"
-failureHandling_message: "Show a message"
+failureHandling_message: "Warn for invalid values and show type errors"
 failureHandling_abort: "Stop loading"

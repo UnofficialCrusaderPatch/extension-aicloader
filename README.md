@@ -13,11 +13,11 @@ However, should issues or suggestions arise that are related to this module, fee
 
 These options are provided to be set in the GUI:
 
-* **failureHandling** - Defines how the modules handles invalid AIC values.
+* **failureHandling** controls how AIC Loader reports rejected settings.
     * *WARN_LOG*  
     A warning is printed to the console and game continues.
     * *ERROR_LOG*  
-    An error is printed to the console and a message window with the error is shown. The game will continue.
+    The default logs warnings for unknown fields, unknown choices and out-of-range values. A type mismatch shows an error message and the game continues.
     * *FATAL_LOG*  
     An error is printed to the console and a message window with the error is shown. The game will abort.
 

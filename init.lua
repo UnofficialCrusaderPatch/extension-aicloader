@@ -38,7 +38,7 @@ local transactions = require("transactions").new({
   end,
 })
 
-local function reportUpdateFailure(message, failureHandlingOverride)
+local function reportUpdateFailure(message, failureHandlingOverride, reason)
   if transactions.isPoisoned() then
     log(FATAL, message)
     error(message, 0)
@@ -46,22 +46,20 @@ local function reportUpdateFailure(message, failureHandlingOverride)
   local failureHandling = failureHandlingOverride or failureHandlingSetting
   if failureHandling == FailureHandling.WARN_LOG then
     log(WARNING, message)
-  elseif failureHandling == FailureHandling.ERROR_LOG then
-    log(ERROR, message)
   elseif failureHandling == FailureHandling.FATAL_LOG then
     log(FATAL, message)
   elseif commandsActive and failureHandling == FailureHandling.CHAT_TEXT then
     modules.commands:displayChatText(message)
   else
-    log(ERROR, message)
+    log(Personality.isValidationWarning(reason) and WARNING or ERROR, message)
   end
 end
 
 local function fieldFailureReporter(aiType, action, failureHandlingOverride)
   return function(field, reason)
     local printable, text = pcall(tostring, reason)
-    reportUpdateFailure(string.format("Error for AI '%s' while %s '%s': %s", aiType, action, field,
-      printable and text or "(error without a message)"), failureHandlingOverride)
+    reportUpdateFailure(string.format("AI '%s' could not finish %s '%s': %s", aiType, action, field,
+      printable and text or "(error without a message)"), failureHandlingOverride, reason)
   end
 end
 
@@ -262,9 +260,7 @@ namespace = {
     end)
 
     if not status then
-      local message = string.format("Error for AI '%s' while setting '%s': %s", aiType, aicField, err)
-
-      reportUpdateFailure(message, failureHandlingOverride)
+      fieldFailureReporter(aiType, "setting", failureHandlingOverride)(aicField, err)
     end
   end,
 
@@ -280,7 +276,10 @@ namespace = {
           fieldFailureReporter(aiType, "setting", failureHandlingOverride))
       end)
       if not status then
-        reportUpdateFailure(string.format("Error for AI '%s' while updating personality: %s", aiType, result), failureHandlingOverride)
+        local printable, reason = pcall(tostring, result)
+        reportUpdateFailure(string.format("Could not update the personality for AI '%s': %s", aiType,
+          printable and reason or "(error without a message)"), failureHandlingOverride, result)
+        if Personality.isValidationWarning(result) then return false, reason end
         return false, result
       end
       if result then return true end
