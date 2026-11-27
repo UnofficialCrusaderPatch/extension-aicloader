@@ -75,10 +75,14 @@ local function receiveValidAiType(aiType)
     error("no ai exists with the name: " .. aiType)
   end
 
-  if aiType < 1 or aiType > 16 then
-    error("AI types must be between 1 and 16. Provided AI type: " .. aiType)
+  if type(aiType) ~= "number" then
+    error("AI type must be a name or a number.", 0)
   end
-  return aiType
+  local index = math.tointeger(aiType)
+  if not index or index < 1 or index > 16 then
+    Personality.rejectValue("AI type must be a whole number from 1 to 16. Received " .. aiType .. ".")
+  end
+  return index
 end
 
 local earlyUpdateReported = false
@@ -315,23 +319,25 @@ namespace = {
       return
     end
 
-    if transactions.hasProviders() then
-      local status, result = pcall(function()
-        return transactions.update(receiveValidAiType(aiType), aicSpec, false,
+    local index
+    local status, result = pcall(function()
+      index = receiveValidAiType(aiType)
+      if transactions.hasProviders() then
+        return transactions.update(index, aicSpec, false,
           fieldFailureReporter(aiType, "setting", failureHandlingOverride))
-      end)
-      if not status then
-        local printable, reason = pcall(tostring, result)
-        reportUpdateFailure(string.format("Could not update the personality for AI '%s': %s", aiType,
-          printable and reason or "(error without a message)"), failureHandlingOverride, result)
-        if Personality.isValidationWarning(result) then return false, reason end
-        return false, result
       end
-      if result then return true end
+    end)
+    if not status then
+      local printable, reason = pcall(tostring, result)
+      reportUpdateFailure(string.format("Could not update the personality for AI '%s': %s", aiType,
+        printable and reason or "(error without a message)"), failureHandlingOverride, result)
+      if Personality.isValidationWarning(result) then return false, reason end
+      return false, result
     end
+    if result then return true end
 
     for name, value in pairs(aicSpec) do
-      namespace:setAICValue(aiType, name, value, failureHandlingOverride)
+      namespace:setAICValue(index, name, value, failureHandlingOverride)
     end
   end,
 
