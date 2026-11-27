@@ -19,6 +19,7 @@ local failureHandlingSetting = FailureHandling.ERROR_LOG
 local commandsActive = false
 
 local isInitialized = false
+local layoutUnavailable = false
 local vanillaAIC = {}
 
 local additionalAIC = {}
@@ -85,6 +86,7 @@ local function initializedCheck(updating)
   if isInitialized then
     return true
   end
+  if layoutUnavailable then return false end
 
   if updating then
     if not earlyUpdateReported then
@@ -146,9 +148,49 @@ local commands = {
 -- functions you want to expose to the outside world
 namespace = {
   enable = function(self, config)
+    if type(config) ~= "table" then
+      if config ~= nil then log(ERROR, "AIC Loader settings must be a table.") end
+      config = {}
+    end
+    local mode = config.failureHandling
+    if mode ~= nil then
+      if type(mode) ~= "string" then
+        log(ERROR, "AIC Loader failureHandling must be a string. Using ERROR_LOG.")
+      elseif FailureHandling[mode] == nil then
+        log(WARNING, "AIC Loader failureHandling is unknown. Using ERROR_LOG.")
+      end
+    end
+    failureHandlingSetting = FailureHandling[mode] or FailureHandling.ERROR_LOG
 
-    if config["failureHandling"] then
-      failureHandlingSetting = FailureHandling[config["failureHandling"]]
+    local files = {}
+    if config.aicFiles ~= nil then
+      if type(config.aicFiles) ~= "table" then
+        log(ERROR, "AIC Loader aicFiles must be an array.")
+      else
+        local invalid
+        for index, fileName in pairs(config.aicFiles) do
+          if type(index) ~= "number" or index % 1 ~= 0 or index < 1 then
+            invalid = true
+          elseif type(fileName) ~= "string" then
+            log(ERROR, "AIC Loader aicFiles entry " .. index .. " must be a string.")
+          elseif fileName ~= "" then
+            files[#files + 1] = index
+          end
+        end
+        if invalid then
+          log(ERROR, "AIC Loader aicFiles must be an array.")
+          files = {}
+        end
+        table.sort(files)
+        for index, source in ipairs(files) do files[index] = config.aicFiles[source] end
+      end
+    end
+
+    local ok, resolved, reason = pcall(addresses.resolve)
+    layoutUnavailable = not ok or not resolved
+    if layoutUnavailable then
+      log(ERROR, "AIC Loader personality updates are off: " .. tostring(ok and reason or resolved))
+      return
     end
 
     commandsActive = not not modules.commands
@@ -174,16 +216,14 @@ namespace = {
         end
       end
 
-      if config.aicFiles then
-        if type(config.aicFiles) == "table" then
-          for _, fileName in pairs(config.aicFiles) do
-            if fileName:len() > 0 then
-              log(INFO, "Overwritten AIC values from file: " .. fileName)
-              namespace:overwriteAICsFromFile(fileName)
-            end
-          end
+      for _, fileName in ipairs(files) do
+        local applied, problem = pcall(namespace.overwriteAICsFromFile, namespace, fileName)
+        if applied then
+          log(INFO, "Overwritten AIC values from file: " .. fileName)
+        elseif transactions.isPoisoned() then
+          return
         else
-          error("aicFiles should be a yaml array")
+          log(ERROR, "AIC Loader could not read " .. fileName .. ": " .. tostring(problem))
         end
       end
 
@@ -202,7 +242,10 @@ namespace = {
   -- Metadata is available before afterInit; reading values still follows the
   -- normal game lifecycle. Returning a fresh table prevents metadata mutation.
   getNativeAICLayout = function(self)
-    return {version=1, address=getAIStartAddress(1), characters=addresses.characters, stride=addresses.stride}
+    local address = not layoutUnavailable and getAIStartAddress(1)
+    if address then
+      return {version=1, address=address, characters=addresses.characters, stride=addresses.stride}
+    end
   end,
 
   getAICValue = function(self, aiType, aicField)
@@ -297,14 +340,22 @@ namespace = {
       return
     end
 
-    local file = io.open(aicFilePath, "rb")
-    local spec = file:read("*all")
+    local file = assert(io.open(aicFilePath, "rb"))
+    local spec, problem = file:read("*all")
+    file:close()
+    assert(spec, problem)
 
     local aicSpec = yaml.parse(spec)
-    local aics = aicSpec.AICharacters
+    local aics = type(aicSpec) == "table" and aicSpec.AICharacters
+    assert(type(aics) == "table", "AICharacters must be a table.")
 
     for _, aic in pairs(aics) do
-      namespace:overwriteAIC(aic.Name, aic.Personality, failureHandlingOverride)
+      if type(aic) ~= "table" or type(aic.Personality) ~= "table"
+        or (type(aic.Name) ~= "string" and type(aic.Name) ~= "number") then
+        log(ERROR, "AIC Loader skipped a malformed AICharacters entry in " .. aicFilePath .. ".")
+      else
+        namespace:overwriteAIC(aic.Name, aic.Personality, failureHandlingOverride)
+      end
     end
   end,
 

@@ -1,7 +1,9 @@
 name: aicloader
 display-name: AIC Loader
-version: 1.1.8
+version: 1.1.9
 author: gynt, TheRedDaemon
 meta:
   version: 1.0.0
 type: module
+dependencies:
+  framework: ^3.0.8

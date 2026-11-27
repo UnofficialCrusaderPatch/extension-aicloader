@@ -26,8 +26,8 @@ def lua():
             writes[#writes + 1] = {address, value}
           end,
         }
-        package.loaded.addresses = {getAIStartAddress = function(ai) return 10000 + ai * 676 end,
-          characters = 16, stride = 676}
+        core.AOBScanUnique = function() return 5000 end
+        memory[5004], memory[5031] = 10000, 10000
         log = function(level, message) messages[#messages + 1] = message end
         hooks = {registerHookCallback = function(_, callback) afterInit = callback end}
         modules = {}
