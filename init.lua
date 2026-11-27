@@ -80,12 +80,20 @@ local function receiveValidAiType(aiType)
   return aiType
 end
 
-local function initializedCheck()
+local earlyUpdateReported = false
+local function initializedCheck(updating)
   if isInitialized then
     return true
   end
 
-  log(WARNING, "AIC loader not yet initialized. Call ignored.")
+  if updating then
+    if not earlyUpdateReported then
+      earlyUpdateReported = true
+      log(ERROR, "An AI personality change was skipped because AIC Loader was not ready.")
+    end
+  else
+    log(WARNING, "AIC Loader was not ready. Request skipped.")
+  end
   return false
 end
 
@@ -103,7 +111,7 @@ local namespace = {}
 -- available only for the command module and not part of the documentation until the command module is fully added
 local commands = {
   onCommandSetAICValue = function(command)
-    if not initializedCheck() then
+    if not initializedCheck(true) then
       return
     end
 
@@ -119,7 +127,7 @@ local commands = {
   end,
 
   onCommandLoadAICsFromFile = function(command)
-    if not initializedCheck() then
+    if not initializedCheck(true) then
       return
     end
 
@@ -231,7 +239,7 @@ namespace = {
 
   setAICValue = function(self, aiType, aicField, aicValue, failureHandlingOverride)
     transactions.assertMutable()
-    if not initializedCheck() then
+    if not initializedCheck(true) then
       return
     end
 
@@ -262,7 +270,7 @@ namespace = {
 
   overwriteAIC = function(self, aiType, aicSpec, failureHandlingOverride)
     transactions.assertMutable()
-    if not initializedCheck() then
+    if not initializedCheck(true) then
       return
     end
 
@@ -284,7 +292,7 @@ namespace = {
   end,
 
   overwriteAICsFromFile = function(self, aicFilePath, failureHandlingOverride)
-    if not initializedCheck() then
+    if not initializedCheck(true) then
       return
     end
 
@@ -301,7 +309,7 @@ namespace = {
 
   resetAIC = function(self, aiType)
     transactions.assertMutable()
-    if not initializedCheck() then
+    if not initializedCheck(true) then
       return
     end
     aiType = receiveValidAiType(aiType)

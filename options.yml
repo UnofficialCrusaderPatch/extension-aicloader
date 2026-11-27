@@ -2,8 +2,7 @@ specification-version: 1.0.0
 options:
 - display: GroupBox
   header: '{{general}}'
-  text: '{{general_descr}}'
-  category: ['{{ai}}', '{{misc}}']
+  category: [Stability, Debugging]
   children:
     - url: aicloader.failureHandling
       text: '{{failureHandling_descr}}'
