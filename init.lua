@@ -246,6 +246,7 @@ namespace = {
   -- Metadata is available before afterInit; reading values still follows the
   -- normal game lifecycle. Returning a fresh table prevents metadata mutation.
   getNativeAICLayout = function(self)
+    if not layoutUnavailable then pcall(addresses.resolve) end
     local address = not layoutUnavailable and getAIStartAddress(1)
     if address then
       return {version=1, address=address, characters=addresses.characters, stride=addresses.stride}
