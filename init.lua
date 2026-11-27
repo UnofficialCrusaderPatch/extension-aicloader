@@ -50,8 +50,10 @@ local function reportUpdateFailure(message, failureHandlingOverride, reason)
     log(FATAL, message)
   elseif commandsActive and failureHandling == FailureHandling.CHAT_TEXT then
     modules.commands:displayChatText(message)
-  else
+  elseif failureHandling == FailureHandling.ERROR_LOG then
     log(Personality.isValidationWarning(reason) and WARNING or ERROR, message)
+  else
+    log(ERROR, message)
   end
 end
 
@@ -407,6 +409,11 @@ namespace = {
 
   registerAICUpdateProvider = function(self, owner, provider)
     transactions.register(owner, provider)
+  end,
+
+  rejectInvalidAICValue = function(self, message)
+    assert(type(message) == "string", "An invalid AIC value diagnostic must be a string.")
+    Personality.rejectValue(message)
   end,
 }
 

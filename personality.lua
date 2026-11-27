@@ -584,6 +584,7 @@ local function getAndValidateAicValue(aicField, aicValue)
 end
 
 return {
+  rejectValue = rejectValue,
   isValidationWarning = function(reason) return getmetatable(reason) == warningType end,
   hasAICField = function(aicField)
     return aiFieldIndex[aicField] ~= nil or aicFieldOverrides[aicField] ~= nil

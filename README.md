@@ -13,7 +13,7 @@ However, should issues or suggestions arise that are related to this module, fee
 
 These options are provided to be set in the GUI:
 
-* **failureHandling** controls how AIC Loader reports rejected settings.
+* **failureHandling** classifies validation failures only in the default `ERROR_LOG` mode, while explicit `WARN_LOG` and `FATAL_LOG` report every validation failure at their selected severity.
     * *WARN_LOG*  
     A warning is printed to the console and game continues.
     * *ERROR_LOG*  
@@ -135,7 +135,10 @@ change another provider's input or the caller's authored sheet. Copies preserve
 shared/cyclic references; providers must reject unsupported structures. Providers
 remain responsible for validating their field domains,
 bounded condition rows, reset defaults and cross-field rules. The loader owns
-no policy or per-player state. Provider callbacks are trusted module code;
+no policy or per-player state. In `prepare`, call
+`modules.aicloader:rejectInvalidAICValue(message)` (since 1.1.8) for an invalid choice,
+bound or field combination. This aborts the update with a string diagnostic.
+Use a normal Lua error for a wrong type. Provider callbacks are trusted module code;
 the loader cannot roll back arbitrary side effects that violate this contract.
 Native override value/default callbacks invoked during staging must likewise be
 read-only. Audit existing providers before enrolling their fields in this path.
