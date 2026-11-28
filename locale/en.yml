@@ -1,8 +1,5 @@
-ai: AI
-misc: Misc
 general: AIC Loader
-general_descr: Options controlling the actual AIC Loader behavior.
-failureHandling_descr: Set how the game should react to invalid or unknown AIC values.
-failureHandling_log: Log
-failureHandling_message: Message
-failureHandling_abort: Abort
+failureHandling_descr: "AI setting validation"
+failureHandling_log: "Log a warning"
+failureHandling_message: "Warn for invalid values and show type errors"
+failureHandling_abort: "Stop loading"

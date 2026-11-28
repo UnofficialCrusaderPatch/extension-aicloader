@@ -13,15 +13,25 @@ However, should issues or suggestions arise that are related to this module, fee
 
 These options are provided to be set in the GUI:
 
-* **failureHandling** - Defines how the modules handles invalid AIC values.
+* **failureHandling** classifies validation failures only in the default `ERROR_LOG` mode, while explicit `WARN_LOG` and `FATAL_LOG` report every validation failure at their selected severity.
     * *WARN_LOG*  
     A warning is printed to the console and game continues.
     * *ERROR_LOG*  
-    An error is printed to the console and a message window with the error is shown. The game will continue.
+    The default logs warnings for unknown fields, unknown choices and out-of-range values. A type mismatch shows an error message and the game continues.
     * *FATAL_LOG*  
     An error is printed to the console and a message window with the error is shown. The game will abort.
 
 ### Lua-Exports
+
+AIC Tactics' native code uses the Loader's resolved personality table instead of
+locating it independently. Modules that need native access can call
+`getNativeAICLayout()` (since 1.1.4) to obtain a fresh
+`{version=1, address, characters=16, stride=676}` descriptor. `address` is the
+first AI character's record, resolved by the same owner as `getAICValue` and
+personality updates. The descriptor is available before `afterInit`; native
+values are meaningful only at their normal game lifecycle. This module-only API
+does not authorize bypassing Loader validation or transactional setters and is
+not added to the public plugin API.
 
 The Lua exports are parameters and functions accessible through the module object. These are `self` calls and need to be called as `modules.aicloader:function(...)`.
 
@@ -92,6 +102,10 @@ Neither API authorizes unsynchronized live simulation changes.
 
 ### Prepared personality updates
 
+AIC Tactics can apply recruitment rules from a personality alongside the game's
+AIC values. It validates the whole personality before either part changes, so
+a rejected recruitment rule cannot leave new game values paired with old rules.
+
 `registerAICUpdateProvider(owner, provider)` registers one module-owned update
 participant, once at setup. It is a module API, not a plugin API. Existing AI
 Swapper and file callers continue to use `overwriteAIC`; no second loader is
@@ -101,7 +115,9 @@ needed. The participant has two functions:
   this provider's atomic contract. Select both already-active personalities and
   updates that explicitly activate its fields. For a reset, `changes` is empty
   and `resetting` is true. Omitted/native personalities must be declined when
-  the provider has no effective configuration. This callback must be read-only.
+  the provider has no effective configuration; on reset the loader then calls
+  the reset callbacks of its owned fields after the reset commits.
+  This callback must be read-only.
 * `prepare(aiType, changes, readNative, resetting)` validates the whole change
   against the provider's currently authored configuration and creates detached
   candidate state. `readNative(field)` returns the prospective raw native value,
@@ -119,7 +135,10 @@ change another provider's input or the caller's authored sheet. Copies preserve
 shared/cyclic references; providers must reject unsupported structures. Providers
 remain responsible for validating their field domains,
 bounded condition rows, reset defaults and cross-field rules. The loader owns
-no policy or per-player state. Provider callbacks are trusted module code;
+no policy or per-player state. In `prepare`, call
+`modules.aicloader:rejectInvalidAICValue(message)` (since 1.1.8) for an invalid choice,
+bound or field combination. This aborts the update with a string diagnostic.
+Use a normal Lua error for a wrong type. Provider callbacks are trusted module code;
 the loader cannot roll back arbitrary side effects that violate this contract.
 Native override value/default callbacks invoked during staging must likewise be
 read-only. Audit existing providers before enrolling their fields in this path.
@@ -137,15 +156,19 @@ personality**, not across the entire file. An installed provider that requires
 execution to abort on invalid configuration must use fatal startup preflight;
 the existing warning/error-log modes do not by themselves reject match entry.
 
-An atomic update cannot call an arbitrary old additional-field setter: that API
-does not guarantee a getter or reversible effects. Every additional field in an
-atomic update must have an exclusive owner and an active update provider. An
-atomic full reset requires this for every registered additional field because
-reset covers all fields. Incompatible mixtures are rejected before writes; do
-not claim compatibility until each required old provider supplies a reversible
-contract. Native field aliases may appear together when their validated raw
-values agree; conflicting aliases are rejected in atomic mode. These restrictions
-do not apply to the old path when all providers decline.
+Additional fields registered with `setAdditionalAICValue` have no owner and are
+not part of the atomic set: that API does not guarantee a getter or reversible
+effects. After the atomic part commits, their handler functions (and on reset
+their reset functions) run as on the old path; on failure they do not run. Each
+runs on its own; its error is reported for that field with the selected failure
+handling once and leaves the committed update applied. Every
+owned additional field in an atomic update must have an active update provider;
+otherwise the update is rejected before writes. On reset, owned fields whose
+owner declined are reset through their reset callbacks after the reset commits,
+like fields without an owner.
+Native field aliases may appear together when their validated raw values agree;
+conflicting aliases are rejected in atomic mode. These restrictions do not apply
+to the old path when all providers decline.
 
 No providers registered, or all providers declining, retains the existing
 per-field best-effort path and its validation. Old AICs require no conversion.
@@ -159,3 +182,9 @@ runtime state, synchronize multiplayer changes or establish replay compatibility
 
 To all of the UCP Team, the [Ghidra project](https://github.com/NationalSecurityAgency/ghidra) and
 of course to [Firefly Studios](https://fireflyworlds.com/), the creators of Stronghold Crusader.
+
+Version 1.1.5 corrects store packaging so `vanilla.json` is installed at the module root, matching the loader path. The runtime API is unchanged.
+
+Version 1.1.6 applies additional fields without an owner through their own handlers after an atomic update commits, instead of rejecting the update.
+
+Version 1.1.7 resets owned fields whose owner declines a reset through their reset callbacks after the atomic reset commits, instead of rejecting the reset.

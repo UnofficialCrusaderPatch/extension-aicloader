@@ -26,7 +26,8 @@ def lua():
             writes[#writes + 1] = {address, value}
           end,
         }
-        package.loaded.addresses = {getAIStartAddress = function(ai) return 10000 + ai * 676 end}
+        core.AOBScan = function() return 5000 end
+        memory[5004], memory[5031] = 10000, 10000
         log = function(level, message) messages[#messages + 1] = message end
         hooks = {registerHookCallback = function(_, callback) afterInit = callback end}
         modules = {}
@@ -137,3 +138,20 @@ def test_native_fields_keep_existing_validation_and_partial_update_behavior(lua)
         assert(loader:getAICValue(1, 'RecruitProbRaidDefault') == 15)
         assert(loader:getAICValue(1, 'Policy') == 2)
     """)
+
+
+def test_native_layout_uses_the_same_storage_as_loader_writes(lua):
+    lua.execute('''
+      local layout=loader:getNativeAICLayout()
+      assert(layout.version==1 and layout.characters==16 and layout.stride==676)
+      for ai=1,16 do
+        loader:setAICValue(ai,'RecruitProbDefDefault',ai)
+        local write=writes[#writes]
+        assert(write[1]>=layout.address+(ai-1)*layout.stride)
+        assert(write[1]<layout.address+ai*layout.stride)
+        assert(loader:getAICValue(ai,'RecruitProbDefDefault')==ai)
+      end
+      layout.address=0;layout.stride=0
+      assert(loader:getNativeAICLayout().address~=0)
+      assert(loader:getNativeAICLayout().stride==676)
+    ''')

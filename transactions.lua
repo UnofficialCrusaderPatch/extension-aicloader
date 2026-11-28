@@ -54,10 +54,14 @@ function M.new(deps)
   end
 
   -- Returns false when every provider declines, preserving the old write path.
-  function api.update(aiType, spec, resetting)
+  -- Unowned additional fields are not atomic; their handlers run after commit, as do
+  -- the reset callbacks of owned fields whose owner declined a reset. A callback error
+  -- is passed once to report(field, reason) and leaves the update applied.
+  function api.update(aiType, spec, resetting, report)
     api.assertMutable()
     if next(providers) == nil then return false end
     busy = true
+    local afterCommit = {}
     local ok, result = pcall(function()
       local active, selected = {}, {}
       for _, owner in ipairs(sortedKeys(providers)) do
@@ -72,17 +76,22 @@ function M.new(deps)
       local staged, previous, operations = {}, {}, {}
       if resetting then
         staged = deps.defaults(aiType)
-        for field, additional in pairs(deps.additional) do
-          assert(additional.owner and selected[additional.owner],
-            "Cannot atomically reset AIC field without an active update provider: " .. field)
+        for _, field in ipairs(sortedKeys(deps.additional)) do
+          local additional = deps.additional[field]
+          if not additional.owner or not selected[additional.owner] then
+            afterCommit[#afterCommit + 1] = {field, function() additional.resetFunction(aiType) end}
+          end
         end
       else
         assert(type(spec) == "table", "An AIC update must be a table")
         for _, field in ipairs(sortedKeys(spec)) do
           local additional = deps.additional[field]
-          if additional then
-            assert(additional.owner and selected[additional.owner],
+          if additional and additional.owner then
+            assert(selected[additional.owner],
               "Cannot atomically update AIC field without an active update provider: " .. field)
+          elseif additional then
+            local value = spec[field]
+            afterCommit[#afterCommit + 1] = {field, function() additional.handlerFunction(aiType, value) end}
           else
             local index, value = deps.validate(field, spec[field])
             assert(staged[index] == nil or staged[index] == value,
@@ -145,6 +154,12 @@ function M.new(deps)
     end)
     busy = false
     if not ok then error(result, 0) end
+    if result then
+      for _, item in ipairs(afterCommit) do
+        local applied, reason = pcall(item[2])
+        if not applied then pcall(report, item[1], reason) end
+      end
+    end
     return result
   end
 

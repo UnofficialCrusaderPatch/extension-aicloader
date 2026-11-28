@@ -5,7 +5,8 @@ local AICharacterName = require("characters")
 
 local Personality = require("personality")
 
-local getAIStartAddress = require("addresses").getAIStartAddress
+local addresses = require("addresses")
+local getAIStartAddress = addresses.getAIStartAddress
 
 local FailureHandling = {
   WARN_LOG = "WARN_LOG",
@@ -18,6 +19,7 @@ local failureHandlingSetting = FailureHandling.ERROR_LOG
 local commandsActive = false
 
 local isInitialized = false
+local layoutUnavailable = false
 local vanillaAIC = {}
 
 local additionalAIC = {}
@@ -37,7 +39,7 @@ local transactions = require("transactions").new({
   end,
 })
 
-local function reportUpdateFailure(message, failureHandlingOverride)
+local function reportUpdateFailure(message, failureHandlingOverride, reason)
   if transactions.isPoisoned() then
     log(FATAL, message)
     error(message, 0)
@@ -45,14 +47,22 @@ local function reportUpdateFailure(message, failureHandlingOverride)
   local failureHandling = failureHandlingOverride or failureHandlingSetting
   if failureHandling == FailureHandling.WARN_LOG then
     log(WARNING, message)
-  elseif failureHandling == FailureHandling.ERROR_LOG then
-    log(ERROR, message)
   elseif failureHandling == FailureHandling.FATAL_LOG then
     log(FATAL, message)
   elseif commandsActive and failureHandling == FailureHandling.CHAT_TEXT then
     modules.commands:displayChatText(message)
+  elseif failureHandling == FailureHandling.ERROR_LOG then
+    log(Personality.isValidationWarning(reason) and WARNING or ERROR, message)
   else
     log(ERROR, message)
+  end
+end
+
+local function fieldFailureReporter(aiType, action, failureHandlingOverride)
+  return function(field, reason)
+    local printable, text = pcall(tostring, reason)
+    reportUpdateFailure(string.format("AI '%s' could not finish %s '%s': %s", aiType, action, field,
+      printable and text or "(error without a message)"), failureHandlingOverride, reason)
   end
 end
 
@@ -65,18 +75,31 @@ local function receiveValidAiType(aiType)
     error("no ai exists with the name: " .. aiType)
   end
 
-  if aiType < 1 or aiType > 16 then
-    error("AI types must be between 1 and 16. Provided AI type: " .. aiType)
+  if type(aiType) ~= "number" then
+    error("AI type must be a name or a number.", 0)
   end
-  return aiType
+  local index = math.tointeger(aiType)
+  if not index or index < 1 or index > 16 then
+    Personality.rejectValue("AI type must be a whole number from 1 to 16. Received " .. aiType .. ".")
+  end
+  return index
 end
 
-local function initializedCheck()
+local earlyUpdateReported = false
+local function initializedCheck(updating)
   if isInitialized then
     return true
   end
+  if layoutUnavailable then return false end
 
-  log(WARNING, "AIC loader not yet initialized. Call ignored.")
+  if updating then
+    if not earlyUpdateReported then
+      earlyUpdateReported = true
+      log(ERROR, "An AI personality change was skipped because AIC Loader was not ready.")
+    end
+  else
+    log(WARNING, "AIC Loader was not ready. Request skipped.")
+  end
   return false
 end
 
@@ -94,7 +117,7 @@ local namespace = {}
 -- available only for the command module and not part of the documentation until the command module is fully added
 local commands = {
   onCommandSetAICValue = function(command)
-    if not initializedCheck() then
+    if not initializedCheck(true) then
       return
     end
 
@@ -110,7 +133,7 @@ local commands = {
   end,
 
   onCommandLoadAICsFromFile = function(command)
-    if not initializedCheck() then
+    if not initializedCheck(true) then
       return
     end
 
@@ -129,9 +152,49 @@ local commands = {
 -- functions you want to expose to the outside world
 namespace = {
   enable = function(self, config)
+    if type(config) ~= "table" then
+      if config ~= nil then log(ERROR, "AIC Loader settings must be a table.") end
+      config = {}
+    end
+    local mode = config.failureHandling
+    if mode ~= nil then
+      if type(mode) ~= "string" then
+        log(ERROR, "AIC Loader failureHandling must be a string. Using ERROR_LOG.")
+      elseif FailureHandling[mode] == nil then
+        log(WARNING, "AIC Loader failureHandling is unknown. Using ERROR_LOG.")
+      end
+    end
+    failureHandlingSetting = FailureHandling[mode] or FailureHandling.ERROR_LOG
 
-    if config["failureHandling"] then
-      failureHandlingSetting = FailureHandling[config["failureHandling"]]
+    local files = {}
+    if config.aicFiles ~= nil then
+      if type(config.aicFiles) ~= "table" then
+        log(ERROR, "AIC Loader aicFiles must be an array.")
+      else
+        local invalid
+        for index, fileName in pairs(config.aicFiles) do
+          if type(index) ~= "number" or index % 1 ~= 0 or index < 1 then
+            invalid = true
+          elseif type(fileName) ~= "string" then
+            log(ERROR, "AIC Loader aicFiles entry " .. index .. " must be a string.")
+          elseif fileName ~= "" then
+            files[#files + 1] = index
+          end
+        end
+        if invalid then
+          log(ERROR, "AIC Loader aicFiles must be an array.")
+          files = {}
+        end
+        table.sort(files)
+        for index, source in ipairs(files) do files[index] = config.aicFiles[source] end
+      end
+    end
+
+    local ok, resolved, reason = pcall(addresses.resolve)
+    layoutUnavailable = not ok or not resolved
+    if layoutUnavailable then
+      log(ERROR, "AIC Loader personality updates are off: " .. tostring(ok and reason or resolved))
+      return
     end
 
     commandsActive = not not modules.commands
@@ -157,16 +220,14 @@ namespace = {
         end
       end
 
-      if config.aicFiles then
-        if type(config.aicFiles) == "table" then
-          for _, fileName in pairs(config.aicFiles) do
-            if fileName:len() > 0 then
-              log(INFO, "Overwritten AIC values from file: " .. fileName)
-              namespace:overwriteAICsFromFile(fileName)
-            end
-          end
+      for _, fileName in ipairs(files) do
+        local applied, problem = pcall(namespace.overwriteAICsFromFile, namespace, fileName)
+        if applied then
+          log(INFO, "Overwritten AIC values from file: " .. fileName)
+        elseif transactions.isPoisoned() then
+          return
         else
-          error("aicFiles should be a yaml array")
+          log(ERROR, "AIC Loader could not read " .. fileName .. ": " .. tostring(problem))
         end
       end
 
@@ -179,6 +240,17 @@ namespace = {
       return
     end
     log(DEBUG, "AIC loader disable called. Does nothing.")
+  end,
+
+  -- Native modules need the same resolved storage used by all Loader accessors.
+  -- Metadata is available before afterInit; reading values still follows the
+  -- normal game lifecycle. Returning a fresh table prevents metadata mutation.
+  getNativeAICLayout = function(self)
+    if not layoutUnavailable then pcall(addresses.resolve) end
+    local address = not layoutUnavailable and getAIStartAddress(1)
+    if address then
+      return {version=1, address=address, characters=addresses.characters, stride=addresses.stride}
+    end
   end,
 
   getAICValue = function(self, aiType, aicField)
@@ -215,14 +287,15 @@ namespace = {
 
   setAICValue = function(self, aiType, aicField, aicValue, failureHandlingOverride)
     transactions.assertMutable()
-    if not initializedCheck() then
+    if not initializedCheck(true) then
       return
     end
 
     local status, err = pcall(function()
       aiType = receiveValidAiType(aiType)
 
-      if transactions.update(aiType, {[aicField] = aicValue}, false) then return end
+      if transactions.update(aiType, {[aicField] = aicValue}, false,
+        fieldFailureReporter(aiType, "setting", failureHandlingOverride)) then return end
 
       local additional = additionalAIC[aicField]
       if additional then
@@ -237,58 +310,70 @@ namespace = {
     end)
 
     if not status then
-      local message = string.format("Error for AI '%s' while setting '%s': %s", aiType, aicField, err)
-
-      reportUpdateFailure(message, failureHandlingOverride)
+      fieldFailureReporter(aiType, "setting", failureHandlingOverride)(aicField, err)
     end
   end,
 
   overwriteAIC = function(self, aiType, aicSpec, failureHandlingOverride)
     transactions.assertMutable()
-    if not initializedCheck() then
+    if not initializedCheck(true) then
       return
     end
 
-    if transactions.hasProviders() then
-      local status, result = pcall(function()
-        return transactions.update(receiveValidAiType(aiType), aicSpec, false)
-      end)
-      if not status then
-        reportUpdateFailure(string.format("Error for AI '%s' while updating personality: %s", aiType, result), failureHandlingOverride)
-        return false, result
+    local index
+    local status, result = pcall(function()
+      index = receiveValidAiType(aiType)
+      if transactions.hasProviders() then
+        return transactions.update(index, aicSpec, false,
+          fieldFailureReporter(aiType, "setting", failureHandlingOverride))
       end
-      if result then return true end
+    end)
+    if not status then
+      local printable, reason = pcall(tostring, result)
+      reportUpdateFailure(string.format("Could not update the personality for AI '%s': %s", aiType,
+        printable and reason or "(error without a message)"), failureHandlingOverride, result)
+      if Personality.isValidationWarning(result) then return false, reason end
+      return false, result
     end
+    if result then return true end
 
     for name, value in pairs(aicSpec) do
-      namespace:setAICValue(aiType, name, value, failureHandlingOverride)
+      namespace:setAICValue(index, name, value, failureHandlingOverride)
     end
   end,
 
   overwriteAICsFromFile = function(self, aicFilePath, failureHandlingOverride)
-    if not initializedCheck() then
+    if not initializedCheck(true) then
       return
     end
 
-    local file = io.open(aicFilePath, "rb")
-    local spec = file:read("*all")
+    local file = assert(io.open(aicFilePath, "rb"))
+    local spec, problem = file:read("*all")
+    file:close()
+    assert(spec, problem)
 
     local aicSpec = yaml.parse(spec)
-    local aics = aicSpec.AICharacters
+    local aics = type(aicSpec) == "table" and aicSpec.AICharacters
+    assert(type(aics) == "table", "AICharacters must be a table.")
 
     for _, aic in pairs(aics) do
-      namespace:overwriteAIC(aic.Name, aic.Personality, failureHandlingOverride)
+      if type(aic) ~= "table" or type(aic.Personality) ~= "table"
+        or (type(aic.Name) ~= "string" and type(aic.Name) ~= "number") then
+        log(ERROR, "AIC Loader skipped a malformed AICharacters entry in " .. aicFilePath .. ".")
+      else
+        namespace:overwriteAIC(aic.Name, aic.Personality, failureHandlingOverride)
+      end
     end
   end,
 
   resetAIC = function(self, aiType)
     transactions.assertMutable()
-    if not initializedCheck() then
+    if not initializedCheck(true) then
       return
     end
     aiType = receiveValidAiType(aiType)
 
-    if transactions.update(aiType, {}, true) then return end
+    if transactions.update(aiType, {}, true, fieldFailureReporter(aiType, "resetting")) then return end
 
     local vanillaStartAddr = getAIStartAddress(aiType)
     local vanillaEndAddr = vanillaStartAddr + 4 * 168
@@ -382,6 +467,11 @@ namespace = {
 
   registerAICUpdateProvider = function(self, owner, provider)
     transactions.register(owner, provider)
+  end,
+
+  rejectInvalidAICValue = function(self, message)
+    assert(type(message) == "string", "An invalid AIC value diagnostic must be a string.")
+    Personality.rejectValue(message)
   end,
 }
 
